@@ -6,6 +6,8 @@
 #################################################
 
 from cmu_112_graphics import *
+import math
+import random
 
 #################################################
 # CHESS PIECE CLASSES
@@ -65,16 +67,27 @@ class Rook(ChessPiece):
         return "R"
 
 class Bishop(ChessPiece):
-    # def __init__(self, row, col, color):
-    #     super().__init__(row, col, color)
-    #     vertMoves = {(0, i) for i in range(1,8)}
-    #     horMoves = {(i, 0) for i in range(1,8)}
-    #     self.posMoves = set.union(horMoves, vertMoves)
-    #     self.value = 5
+    def __init__(self, row, col, color):
+        super().__init__(row, col, color)
+        neMoves = {(-i, i) for i in range(1,8)}
+        seMoves = {(i, i) for i in range(1,8)}
+        nwMoves = {(-i, -i) for i in range(1,8)}
+        swMoves = {(i, -i) for i in range(1,8)}
+        self.posMoves = set.union(neMoves, seMoves, nwMoves, swMoves)
+        self.value = 3
+
     def __repr__(self):
         return "B"
 
 class Knight(ChessPiece):
+    def __init__(self, row, col, color):
+        super().__init__(row, col, color)
+        for drow in {-2, -1, 1, 2}:
+            for dcol in {-2, -1, 1, 2}:
+                if abs(drow) == abs(dcol):
+                    continue
+                self.posMoves.add((drow, dcol))
+        self.value = 3
     def __repr__(self):
         return "N"
 
@@ -120,30 +133,63 @@ def gameMode_timerFired(app):
 
 def gameMode_drawMoves(app, canvas):
     posMoves = app.activePiece.posMoves
+    currRow, currCol = app.activePiece.row, app.activePiece.col
+    for (dRow, dCol) in posMoves:
+        moveRow, moveCol = currRow + dRow, currCol + dCol
+        if (inBoard(app, moveRow, moveCol) 
+            and isinstance(app.gameBoard[moveRow][moveCol], ChessPiece) != True
+            and gameMode_hasNoBlockingPiece(app, moveRow, moveCol)):
+            x0, y0, x1, y1 = getDimensions(app, moveRow, moveCol)
+            x, y = (x0 + x1) / 2, (y0 + y1) / 2
+            canvas.create_oval(x - app.moveDotR, y - app.moveDotR,
+                               x + app.moveDotR, y + app.moveDotR,
+                               fill = app.moveDotColor)
+            
+def gameMode_hasNoBlockingPiece(app, moveRow, moveCol):
+    # print("**** NEW PIECE ****")
+    if type(app.activePiece) != Knight:
+        currRow, currCol = app.activePiece.row, app.activePiece.col
+        dRow, dCol = (moveRow - currRow), (moveCol - currCol)
+        dist = math.sqrt(dRow ** 2 + dCol ** 2)
+        # print(f"dRow, dCol: {dRow}, {dCol}, dist: {dist}")
+        unitDRow, unitDCol = math.ceil(dRow / dist), math.ceil(dCol / dist)
+        if dRow / dist < 0:
+            unitDRow = -math.ceil(abs(dRow/dist))
+        if dCol / dist < 0:
+            unitDCol = -math.ceil(abs(dCol/dist))
 
-def gameMode_checkBlockingPiece(app, canvas):
-    # make case for knights
-    # if not a knight
-        # dx, dy (get unit directional movement)
-        # for magnitude in range(1, 8):
-            # moveX, moveY = dx * mag, dy * mag
-            # while moveX, moveY in posMoves:
-                # row, col = (app.activePiece.row + moveX,
-                            # app.activePiece.col + moveY)
-                # if gameBoard[row][col] is ChessPiece
-                    # return True
-    # return False
-    pass
+        tempRow, tempCol =  currRow + unitDRow, currCol + unitDCol
+        # print(f"currRow, currCol: {currRow}, {currCol}")
+        # print(f"tempRow, tempCol: {tempRow}, {tempCol}")
+        # print(f"moveRow, moveCol: {moveRow}, {moveCol} unitDRow, unitDCol: {unitDRow}, {unitDCol}")
+        loopCounter = 0
+        # print(f"loop condition: {(tempRow != moveRow) or (tempCol != moveCol)}")
+        while (tempRow != moveRow + unitDRow) or (tempCol != moveCol + unitDCol):
+            # print(f"loop {loopCounter}:", tempRow, tempCol, type(app.gameBoard[tempRow][tempCol]))
+            if isinstance(app.gameBoard[tempRow][tempCol], ChessPiece):
+                return False
+            tempRow += unitDRow
+            tempCol += unitDCol
+            # loopCounter += 1
+    return True
 
 def gameMode_mousePressed(app, event):
-    x = event.x
-    y = event.y
-    print(app.activePiece)
+    x, y = event.x, event.y
     row, col = getRowCol(app, x, y)
+    currPlayerColor = app.players[app.playerToMoveIdx % 2]
+
+    # user clicked on a chess piece
     if isinstance(app.gameBoard[row][col], ChessPiece):
+        # if currPlayerColor != color of piece clicked
+            # if is valid move
+                # take piece
+            # else
+                # do nothing
+        # else # if currPlayerColor == color of piece clicked
+            # run existing code below
         if app.activePiece == None:
             app.activePiece = app.gameBoard[row][col]
-            print(app.activePiece)
+            # print(app.activePiece)
         else: # app.activePiece != None
             clickedPiece = app.gameBoard[row][col]
             if app.activePiece.color == clickedPiece.color:
@@ -151,35 +197,23 @@ def gameMode_mousePressed(app, event):
             else:
                 # check if taking the piece is possible
                 pass
-    else:
-        print("non-piece clicked!")
+    else: # user clicked on an empty space
+        print(f"empty space clicked! {app.activePiece}")
         if app.activePiece != None:
             dx = row - app.activePiece.row
             dy = col - app.activePiece.col
-            print(dx, dy)
-            print(f"posMoves: {app.activePiece.posMoves}")
-            if (dx, dy) in app.activePiece.posMoves:
+            print(app.activePiece, gameMode_hasNoBlockingPiece(app, row, col))
+            if ((dx, dy) in app.activePiece.posMoves and 
+                gameMode_hasNoBlockingPiece(app, row, col)):
+
                 app.gameBoard[app.activePiece.row][app.activePiece.col] = 0
                 app.activePiece.row, app.activePiece.col = row, col
                 app.activePiece.moved = True
-                # if type(app.activePiece == Pawn): # remove pawn dumping option
+                # if type(app.activePiece == Pawn): # remove pawn jumping option
                 #     app.activePiece.posMoves.pop()
                 app.gameBoard[row][col] = app.activePiece
                 app.activePiece = None
-                print("move made!")
-
-        
-    # check where click falls
-    # if chess piece is inside that square
-        # extract which piece is there
-        # project piece's potential moves
-        # set some value such that it's stored that the piece has been selected
-    # if no chess piece is inside that square
-        # check if there's a selected piece
-        # if selected piece exists:
-            # see if move is valid, if it is, make move
-        # else:
-            # do nothing
+    print(app.activePiece)
 
 def gameMode_keyPressed(app, event):
     # if (event.key == 'p'):
@@ -201,6 +235,7 @@ def gameMode_drawPieces(app, canvas):
 def gameMode_redrawAll(app, canvas):
     gameMode_drawBoard(app, canvas)
     gameMode_drawPieces(app, canvas)
+    # canvas.create_oval(100, 100, 110, 110, fill = "blue")
     if app.activePiece != None:
         gameMode_drawMoves(app, canvas)
     # canvas.create_image(200, 200, image=ImageTk.PhotoImage(app.whitePawnImg))
@@ -266,7 +301,9 @@ def appStarted(app):
     app.squareSize = (app.width - (2 * app.margin)) / 8
     app.squareOutlineWidth = 5
     app.boardColors = ['green', 'tan']
-    app.backgroundColor = 'brown'    
+    app.backgroundColor = 'brown'  
+    app.moveDotR = 5
+    app.moveDotColor = "blue" 
     # app.images = dict()
     # chessPieces = app.loadImage('chessSprites.png')
     # app.whitePawnImg = chessPieces.crop((1000, 0, 1200, 200))
@@ -275,24 +312,25 @@ def appStarted(app):
     app.mode = 'gameMode'
 
     app.activePiece = None
-    app.playerToMove = "white"
+    app.playerToMoveIdx = 0
+    app.players = ["white", "black"]
 
     app.gameBoard = [[0] * 8 for i in range(8)]
     for col in range(app.cols):
         app.gameBoard[1][col] = Pawn(1, col, "black")
         app.gameBoard[app.rows - 2][col] = Pawn(app.rows - 2, col, "white")
     
-    for row in {0, -1}:
+    for row in {0, app.rows - 1}:
         if row == 0: 
             color = "black" 
         else:
             color = "white"
         # add color parameter in once that's put into the classes
-        for col in {0, -1}:
+        for col in {0, app.cols - 1}:
             app.gameBoard[row][col] = Rook(row, col, color)
-        for col in {1, -2}:
+        for col in {1, app.cols - 2}:
             app.gameBoard[row][col] = Knight(row, col, color)
-        for col in {2, -3}:
+        for col in {2, app.cols - 3}:
             app.gameBoard[row][col] = Bishop(row, col, color)
         
 def redrawAll(app, canvas):
