@@ -7,7 +7,6 @@
 
 # TO-DOS
     # write checkmate function
-    # code player turns
 
 from cmu_112_graphics import *
 import math
@@ -22,11 +21,15 @@ class ChessPiece(object):
         self.row = row
         self.col = col
         self.color = color
-        self.moved = False
+        self.hashables = (self.row, self.col, self.color)
 
+        self.moved = False
         self.posMoves = set()
         self.takeMoves = self.posMoves
         self.value = 0
+
+    def __hash__(self):
+        return hash(self.hashables)
 
     # def move(self, newRow, newCol):
     #     # check if in valid move
@@ -222,27 +225,41 @@ def gameMode_checkBlockingPieces(app, moveRow, moveCol):
             # loopCounter += 1
     return True
 
+# if move is valid, make move and adjust set of same-color pieces accordingly
 def gameMode_makeMove(app, row, col):
     if gameMode_isValidMove(app, row, col):
         app.gameBoard[app.activePiece.row][app.activePiece.col] = 0
+        eval(f"app.{app.activePiece.color}Pieces.remove(app.activePiece)")
+
         app.activePiece.row, app.activePiece.col = row, col
         app.activePiece.moved = True
         # if type(app.activePiece == Pawn): # remove pawn jumping option
         #     app.activePiece.posMoves.pop()
         app.gameBoard[row][col] = app.activePiece
+        eval(f"app.{app.activePiece.color}Pieces.add(app.activePiece)")
+
         app.activePiece = None
         app.playerToMoveIdx += 1 
 
+# if move is valid, take piece and remove piece from respective set of pieces
 def gameMode_takePiece(app, row, col):
     if gameMode_isValidMove(app, row, col):
         app.gameBoard[app.activePiece.row][app.activePiece.col] = 0
         app.activePiece.row, app.activePiece.col = row, col
         app.activePiece.moved = True
+
+        takenPiece = app.gameBoard[row][col]
+        eval(f"app.{takenPiece.color}Pieces.remove(takenPiece)")
+
         app.gameBoard[row][col] = app.activePiece
         # insert code where taken piece is removed from list of color's pieces
             # do this when backtracking/position eval is applied
         app.activePiece = None
-        app.playerToMoveIdx += 1 
+        app.playerToMoveIdx += 1
+
+def gameMode_hasCheck(app):
+
+    pass
 
 def gameMode_hasCheckmate(app):
     pass # maybe just make this a regular method since it applies to both 
@@ -369,6 +386,7 @@ def inBoard(app, x, y):
 
     return True
 
+# return true if entered row and col are inside board bounds
 def rowColInBounds(app, row, col):
     if row < 0 or row >= app.rows or col < 0 or col >= app.cols:
         return False
@@ -415,6 +433,42 @@ def getRowCol(app, x, y):
     # for image in list of images
         # scale image down from 200x200 to whatever equals size of board square
         
+def initializeBoard(app):
+    for col in range(app.cols):
+        bPawn, wPawn = Pawn(1, col, "black"), Pawn(app.rows - 2, col, "white")
+        app.gameBoard[1][col] = bPawn
+        app.gameBoard[app.rows - 2][col] = wPawn
+        app.blackPieces.add(bPawn)
+        app.whitePieces.add(wPawn)
+    
+    for row in {0, app.rows - 1}:
+        if row == 0: 
+            color = "black"
+        else:
+            color = "white"
+
+        for col in {0, app.cols - 1}:
+            newRook = Rook(row, col, color)
+            app.gameBoard[row][col] = newRook
+            eval(f"app.{color}Pieces.add(newRook)")
+        for col in {1, app.cols - 2}:
+            newKnight = Knight(row, col, color)
+            app.gameBoard[row][col] = newKnight
+            eval(f"app.{color}Pieces.add(newKnight)")
+        for col in {2, app.cols - 3}:
+            newBishop = Bishop(row, col, color)
+            app.gameBoard[row][col] = newBishop
+            eval(f"app.{color}Pieces.add(newBishop)")
+
+        if color == "white":
+            wQueen, wKing = Queen(row, 3, color), King(row, 4, color)
+            app.gameBoard[row][3], app.gameBoard[row][4] = wQueen, wKing
+            app.whitePieces = app.whitePieces.union({wQueen, wKing})
+        else:
+            bQueen, bKing = Queen(row, 4, color), King(row, 3, color)
+            app.gameBoard[row][4] = bQueen
+            app.gameBoard[row][3] = bKing
+            app.blackPieces = app.blackPieces.union({bQueen, bKing})
 
 # initializes all app variables
 def appStarted(app):
@@ -439,29 +493,11 @@ def appStarted(app):
     app.playerToMoveIdx = 0
     app.players = ["white", "black"]
 
+    app.whitePieces = set()
+    app.blackPieces = set()
+
     app.gameBoard = [[0] * 8 for i in range(8)]
-    for col in range(app.cols):
-        app.gameBoard[1][col] = Pawn(1, col, "black")
-        app.gameBoard[app.rows - 2][col] = Pawn(app.rows - 2, col, "white")
-    
-    for row in {0, app.rows - 1}:
-        if row == 0: 
-            color = "black" 
-        else:
-            color = "white"
-        # add color parameter in once that's put into the classes
-        for col in {0, app.cols - 1}:
-            app.gameBoard[row][col] = Rook(row, col, color)
-        for col in {1, app.cols - 2}:
-            app.gameBoard[row][col] = Knight(row, col, color)
-        for col in {2, app.cols - 3}:
-            app.gameBoard[row][col] = Bishop(row, col, color)
-        if color == "white":
-            app.gameBoard[row][3] = Queen(row, 3, color)
-            app.gameBoard[row][4] = King(row, 4, color)
-        else:
-            app.gameBoard[row][4] = Queen(row, 4, color)
-            app.gameBoard[row][3] = King(row, 3, color)
+    initializeBoard(app)
         
         
 def redrawAll(app, canvas):
