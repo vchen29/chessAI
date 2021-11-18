@@ -5,6 +5,12 @@
 # Your andrew id: vxc
 #################################################
 
+# TO-DOS
+    # write takePiece()
+    # write checkmate function
+    # cite images/code
+    # code player turns
+
 from cmu_112_graphics import *
 import math
 import random
@@ -21,29 +27,33 @@ class ChessPiece(object):
         self.moved = False
 
         self.posMoves = set()
+        self.takeMoves = self.posMoves
         self.value = 0
 
-    def move(self, newRow, newCol):
-        # check if in valid move
-        # if valid, make move
-        pass
+    # def move(self, newRow, newCol):
+    #     # check if in valid move
+    #     # if valid, make move
+    #     pass
     
-    def isValidMove(self, newRow, newCol):
-        # checks if newRow, newCol is in list of valid moves or in board
-        pass
+    # def isValidMove(self, newRow, newCol):
+    #     # checks if newRow, newCol is in list of valid moves or in board
+    #     pass
 
-    def getValidMoves(self):
-        # returns list of valid moves from current position
-        pass
+    # def getValidMoves(self):
+    #     # returns list of valid moves from current position
+    #     pass
 
 class Pawn(ChessPiece):
     def __init__(self, row, col, color):
         super().__init__(row, col, color)
 
         if self.color == "white":
-            self.posMoves = {(-1, 0), (-2, 0)}
+            self.posMoves = {(-1, 0)} # ignoring -2,0 for now
+            self.takeMoves = {(-1, -1), (-1, 1)}
         else: # self.color == "black"
-            self.posMoves = {(1, 0), (2, 0)}
+            self.posMoves = {(1, 0)} # ignoring 2,0 for now
+            self.takeMoves = {(1, -1), (1, 1)}
+        
         self.value = 1
 
         # when self.moved switches to True, pop (0, +/-2)
@@ -54,11 +64,12 @@ class Pawn(ChessPiece):
 class Rook(ChessPiece):
     def __init__(self, row, col, color):
         super().__init__(row, col, color)
-        vertMoves1 = {(0, i) for i in range(1,8)}
-        vertMoves2 = {(0, -i) for i in range(1,8)}
-        horMoves1 = {(i, 0) for i in range(1,8)}
-        horMoves2 = {(-i, 0) for i in range(1,8)}
-        self.posMoves = set.union(horMoves1, horMoves2, vertMoves1, vertMoves2)
+
+        vertMoves = {(0, i) for i in range(-7,8) if i != 0}
+        horMoves = {(i, 0) for i in range(-7,8) if i != 0}
+        self.posMoves = set.union(horMoves, vertMoves)
+        self.takeMoves = self.posMoves
+
         self.value = 5
 
         # castling no longer an option when self.moved = True
@@ -69,11 +80,14 @@ class Rook(ChessPiece):
 class Bishop(ChessPiece):
     def __init__(self, row, col, color):
         super().__init__(row, col, color)
+
         neMoves = {(-i, i) for i in range(1,8)}
         seMoves = {(i, i) for i in range(1,8)}
         nwMoves = {(-i, -i) for i in range(1,8)}
         swMoves = {(i, -i) for i in range(1,8)}
         self.posMoves = set.union(neMoves, seMoves, nwMoves, swMoves)
+        self.takeMoves = self.posMoves
+
         self.value = 3
 
     def __repr__(self):
@@ -82,20 +96,50 @@ class Bishop(ChessPiece):
 class Knight(ChessPiece):
     def __init__(self, row, col, color):
         super().__init__(row, col, color)
+
         for drow in {-2, -1, 1, 2}:
             for dcol in {-2, -1, 1, 2}:
                 if abs(drow) == abs(dcol):
                     continue
                 self.posMoves.add((drow, dcol))
+        self.takeMoves = self.posMoves
+
         self.value = 3
+
     def __repr__(self):
         return "N"
 
 class King(ChessPiece):
+    def __init__(self, row, col, color):
+        super().__init__(row, col, color)
+
+        for r in {-1, 0, 1}:
+            for c in {-1, 0, 1}:
+                if (r, c) != (0, 0):
+                    self.posMoves.add((r, c))
+        self.takeMoves = self.posMoves
+
+        self.value = 50
+
     def __repr__(self):
         return "K"
 
 class Queen(ChessPiece):
+    def __init__(self, row, col, color):
+        super().__init__(row, col, color)
+
+        neMoves = {(-i, i) for i in range(1,8)}
+        seMoves = {(i, i) for i in range(1,8)}
+        nwMoves = {(-i, -i) for i in range(1,8)}
+        swMoves = {(i, -i) for i in range(1,8)}
+        vertMoves = {(0, i) for i in range(-7,8) if i != 0}
+        horMoves = {(i, 0) for i in range(-7,8) if i != 0}
+        self.posMoves = set.union(neMoves, seMoves, nwMoves, swMoves,
+                                  vertMoves, horMoves)
+        self.takeMoves = self.posMoves
+        
+        self.value = 10
+
     def __repr__(self):
         return "Q"
 
@@ -114,42 +158,30 @@ def homeScreenMode_redrawAll(app, canvas):
 #################################################
 # GAME MODE
 #################################################
-    
-# draws chess game board --> maybe make this a general method as it'll be
-# called in both two player and AI mode
-def gameMode_drawBoard(app, canvas):
-    canvas.create_rectangle(0, 0, app.width, app.height,
-                            fill = app.backgroundColor)
-    for row in range(app.rows):
-        for col in range(app.cols):
-            x0, y0, x1, y1 = getDimensions(app, row, col)
-            canvas.create_rectangle(x0, y0, x1, y1,
-                                    fill = app.boardColors[(row + col) % 2],
-                                    width = app.squareOutlineWidth)
 
 def gameMode_timerFired(app):
     # maybe use to display "time-passed" clock for each player
     pass
 
-def gameMode_drawMoves(app, canvas):
-    posMoves = app.activePiece.posMoves
-    currRow, currCol = app.activePiece.row, app.activePiece.col
-    for (dRow, dCol) in posMoves:
-        moveRow, moveCol = currRow + dRow, currCol + dCol
-        if (inBoard(app, moveRow, moveCol) 
-            and isinstance(app.gameBoard[moveRow][moveCol], ChessPiece) != True
-            and gameMode_hasNoBlockingPiece(app, moveRow, moveCol)):
-            x0, y0, x1, y1 = getDimensions(app, moveRow, moveCol)
-            x, y = (x0 + x1) / 2, (y0 + y1) / 2
-            canvas.create_oval(x - app.moveDotR, y - app.moveDotR,
-                               x + app.moveDotR, y + app.moveDotR,
-                               fill = app.moveDotColor)
-            
-def gameMode_hasNoBlockingPiece(app, moveRow, moveCol):
+########################
+# LOGIC FUNCTIONS
+######################## 
+                                     
+def gameMode_isValidMove(app, moveRow, moveCol): # maybe merge and j make this "isValidMove()"
     # print("**** NEW PIECE ****")
+    currRow, currCol = app.activePiece.row, app.activePiece.col
+    dRow, dCol = (moveRow - currRow), (moveCol - currCol)
+    if ((dRow, dCol) not in app.activePiece.posMoves 
+        or rowColInBounds(app, moveRow, moveCol) == False):
+        return False
+
+    return gameMode_checkBlockingPieces(app, moveRow, moveCol)
+
+def gameMode_checkBlockingPieces(app, moveRow, moveCol):
+    currRow, currCol = app.activePiece.row, app.activePiece.col
+    dRow, dCol = (moveRow - currRow), (moveCol - currCol)
+
     if type(app.activePiece) != Knight:
-        currRow, currCol = app.activePiece.row, app.activePiece.col
-        dRow, dCol = (moveRow - currRow), (moveCol - currCol)
         dist = math.sqrt(dRow ** 2 + dCol ** 2)
         # print(f"dRow, dCol: {dRow}, {dCol}, dist: {dist}")
         unitDRow, unitDCol = math.ceil(dRow / dist), math.ceil(dCol / dist)
@@ -166,15 +198,52 @@ def gameMode_hasNoBlockingPiece(app, moveRow, moveCol):
         # print(f"loop condition: {(tempRow != moveRow) or (tempCol != moveCol)}")
         while (tempRow != moveRow + unitDRow) or (tempCol != moveCol + unitDCol):
             # print(f"loop {loopCounter}:", tempRow, tempCol, type(app.gameBoard[tempRow][tempCol]))
-            if isinstance(app.gameBoard[tempRow][tempCol], ChessPiece):
+            tempPiece = app.gameBoard[tempRow][tempCol]
+            if (isinstance(tempPiece, ChessPiece) and
+                tempPiece.color == app.activePiece.color):
                 return False
+
+            # if piece is diff color & not the desired moveRow, moveCol location
+            elif (isinstance(tempPiece, ChessPiece) and
+                  tempPiece.color != app.activePiece.color and
+                  (tempRow != moveRow or tempCol != moveCol)):
+                return False
+            
+            # if piece is diff color & is the desired moveRow, moveCol location
+            elif (isinstance(tempPiece, ChessPiece) and
+                  tempPiece.color != app.activePiece.color and
+                  (tempRow == moveRow or tempCol == moveCol)):
+                return True
+
             tempRow += unitDRow
             tempCol += unitDCol
             # loopCounter += 1
     return True
 
+def gameMode_makeMove(app, row, col):
+    app.gameBoard[app.activePiece.row][app.activePiece.col] = 0
+    app.activePiece.row, app.activePiece.col = row, col
+    app.activePiece.moved = True
+    # if type(app.activePiece == Pawn): # remove pawn jumping option
+    #     app.activePiece.posMoves.pop()
+    app.gameBoard[row][col] = app.activePiece
+    app.activePiece = None
+
+def gameMode_takePiece(app, row, col):
+    pass # more code from mousePressed in here
+
+def gameMode_hasCheckmate(app):
+    pass # maybe just make this a regular method since it applies to both 
+         # 2 player and AI version of game (perhaps do same for other methods)
+
+########################
+# EVENT FUNCTIONS
+########################
+
 def gameMode_mousePressed(app, event):
     x, y = event.x, event.y
+    if inBoard(app, x, y) == False:
+        return
     row, col = getRowCol(app, x, y)
     currPlayerColor = app.players[app.playerToMoveIdx % 2]
 
@@ -190,35 +259,65 @@ def gameMode_mousePressed(app, event):
         if app.activePiece == None:
             app.activePiece = app.gameBoard[row][col]
             # print(app.activePiece)
+        
         else: # app.activePiece != None
             clickedPiece = app.gameBoard[row][col]
             if app.activePiece.color == clickedPiece.color:
                 app.activePiece = clickedPiece
-            else:
-                # check if taking the piece is possible
+            else: # pieces are different colors- make this an elif
+                gameMode_takePiece(app, row, col)
                 pass
-    else: # user clicked on an empty space
-        print(f"empty space clicked! {app.activePiece}")
-        if app.activePiece != None:
-            dx = row - app.activePiece.row
-            dy = col - app.activePiece.col
-            print(app.activePiece, gameMode_hasNoBlockingPiece(app, row, col))
-            if ((dx, dy) in app.activePiece.posMoves and 
-                gameMode_hasNoBlockingPiece(app, row, col)):
 
-                app.gameBoard[app.activePiece.row][app.activePiece.col] = 0
-                app.activePiece.row, app.activePiece.col = row, col
-                app.activePiece.moved = True
-                # if type(app.activePiece == Pawn): # remove pawn jumping option
-                #     app.activePiece.posMoves.pop()
-                app.gameBoard[row][col] = app.activePiece
-                app.activePiece = None
+    else: # user clicked on an empty space
+        # print(f"empty space clicked! {app.activePiece}")
+        if app.activePiece != None and gameMode_isValidMove(app, row, col):
+            # print(app.activePiece, gameMode_isValidMove(app, row, col))
+            gameMode_makeMove(app, row, col)  
+
     print(app.activePiece)
 
 def gameMode_keyPressed(app, event):
     # if (event.key == 'p'):
     #     app.mode = 'pauseMode'
     pass
+
+
+########################
+# DRAW FUNCTIONS
+########################
+
+# draws chess game board --> maybe make this a general method as it'll be
+# called in both two player and AI mode
+def gameMode_drawBoard(app, canvas):
+    canvas.create_rectangle(0, 0, app.width, app.height,
+                            fill = app.backgroundColor)
+    for row in range(app.rows):
+        for col in range(app.cols):
+            x0, y0, x1, y1 = getDimensions(app, row, col)
+            canvas.create_rectangle(x0, y0, x1, y1,
+                                    fill = app.boardColors[(row + col) % 2],
+                                    width = app.squareOutlineWidth)
+
+def gameMode_drawMoves(app, canvas):
+    posMoves = app.activePiece.posMoves
+    currRow, currCol = app.activePiece.row, app.activePiece.col
+    for (dRow, dCol) in posMoves:
+        moveRow, moveCol = currRow + dRow, currCol + dCol
+        if (gameMode_isValidMove(app, moveRow, moveCol) and
+            isinstance(app.gameBoard[moveRow][moveCol], ChessPiece) != True):
+            x0, y0, x1, y1 = getDimensions(app, moveRow, moveCol)
+            x, y = (x0 + x1) / 2, (y0 + y1) / 2
+            canvas.create_oval(x - app.moveDotR, y - app.moveDotR,
+                               x + app.moveDotR, y + app.moveDotR,
+                               fill = app.moveDotColor)
+        elif (gameMode_isValidMove(app, moveRow, moveCol) and
+              isinstance(app.gameBoard[moveRow][moveCol], ChessPiece) == True and
+              app.activePiece.color != app.gameBoard[moveRow][moveCol].color):
+            x0, y0, x1, y1 = getDimensions(app, moveRow, moveCol)
+            x, y = (x0 + x1) / 2, (y0 + y1) / 2
+            canvas.create_oval(x - app.moveDotR, y - app.moveDotR,
+                               x + app.moveDotR, y + app.moveDotR,
+                               fill = app.takeDotColor)
 
 def gameMode_drawPieces(app, canvas):
     for rowIdx in range(len(app.gameBoard)):
@@ -231,7 +330,7 @@ def gameMode_drawPieces(app, canvas):
                 canvas.create_text((x0 + x1) / 2, (y0 + y1) / 2,
                                    text = str(piece), font = "Arial 40",
                                    fill = piece.color)
-            
+
 def gameMode_redrawAll(app, canvas):
     gameMode_drawBoard(app, canvas)
     gameMode_drawPieces(app, canvas)
@@ -245,9 +344,17 @@ def gameMode_redrawAll(app, canvas):
 # GENERAL CONTROLS
 #################################################
 
-# return True if row, col is inside the chess board
-def inBoard(app, row, col):
-    if (row < 0 or row >= app.rows) or (col < 0 or col >= app.cols):
+# return True if x, y is inside the chess board
+def inBoard(app, x, y):
+    # checks if click is outside board entirely
+    if ((x < app.margin or x > app.width - app.margin)
+        or (y < app.margin or y > app.height - app.margin)): # may need to adjust these values
+        return False
+
+    return True
+
+def rowColInBounds(app, row, col):
+    if row < 0 or row >= app.rows or col < 0 or col >= app.cols:
         return False
     return True
 
@@ -300,10 +407,11 @@ def appStarted(app):
     app.rows, app.cols = 8, 8
     app.squareSize = (app.width - (2 * app.margin)) / 8
     app.squareOutlineWidth = 5
-    app.boardColors = ['green', 'tan']
+    app.boardColors = ['tan', 'green']
     app.backgroundColor = 'brown'  
     app.moveDotR = 5
     app.moveDotColor = "blue" 
+    app.takeDotColor = "red"
     # app.images = dict()
     # chessPieces = app.loadImage('chessSprites.png')
     # app.whitePawnImg = chessPieces.crop((1000, 0, 1200, 200))
@@ -332,6 +440,13 @@ def appStarted(app):
             app.gameBoard[row][col] = Knight(row, col, color)
         for col in {2, app.cols - 3}:
             app.gameBoard[row][col] = Bishop(row, col, color)
+        if color == "white":
+            app.gameBoard[row][3] = Queen(row, 3, color)
+            app.gameBoard[row][4] = King(row, 4, color)
+        else:
+            app.gameBoard[row][4] = Queen(row, 4, color)
+            app.gameBoard[row][3] = King(row, 3, color)
+        
         
 def redrawAll(app, canvas):
 
