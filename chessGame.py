@@ -6,9 +6,7 @@
 #################################################
 
 # TO-DOS
-    # write takePiece()
     # write checkmate function
-    # cite images/code
     # code player turns
 
 from cmu_112_graphics import *
@@ -175,7 +173,11 @@ def gameMode_isValidMove(app, moveRow, moveCol): # maybe merge and j make this "
         or rowColInBounds(app, moveRow, moveCol) == False):
         return False
 
-    return gameMode_checkBlockingPieces(app, moveRow, moveCol)
+    result = gameMode_checkBlockingPieces(app, moveRow, moveCol)
+    if result == True or result == "takePiece":
+        return True
+    else:
+        return False
 
 def gameMode_checkBlockingPieces(app, moveRow, moveCol):
     currRow, currCol = app.activePiece.row, app.activePiece.col
@@ -213,7 +215,7 @@ def gameMode_checkBlockingPieces(app, moveRow, moveCol):
             elif (isinstance(tempPiece, ChessPiece) and
                   tempPiece.color != app.activePiece.color and
                   (tempRow == moveRow or tempCol == moveCol)):
-                return True
+                return "takePiece"
 
             tempRow += unitDRow
             tempCol += unitDCol
@@ -221,16 +223,26 @@ def gameMode_checkBlockingPieces(app, moveRow, moveCol):
     return True
 
 def gameMode_makeMove(app, row, col):
-    app.gameBoard[app.activePiece.row][app.activePiece.col] = 0
-    app.activePiece.row, app.activePiece.col = row, col
-    app.activePiece.moved = True
-    # if type(app.activePiece == Pawn): # remove pawn jumping option
-    #     app.activePiece.posMoves.pop()
-    app.gameBoard[row][col] = app.activePiece
-    app.activePiece = None
+    if gameMode_isValidMove(app, row, col):
+        app.gameBoard[app.activePiece.row][app.activePiece.col] = 0
+        app.activePiece.row, app.activePiece.col = row, col
+        app.activePiece.moved = True
+        # if type(app.activePiece == Pawn): # remove pawn jumping option
+        #     app.activePiece.posMoves.pop()
+        app.gameBoard[row][col] = app.activePiece
+        app.activePiece = None
+        app.playerToMoveIdx += 1 
 
 def gameMode_takePiece(app, row, col):
-    pass # more code from mousePressed in here
+    if gameMode_isValidMove(app, row, col):
+        app.gameBoard[app.activePiece.row][app.activePiece.col] = 0
+        app.activePiece.row, app.activePiece.col = row, col
+        app.activePiece.moved = True
+        app.gameBoard[row][col] = app.activePiece
+        # insert code where taken piece is removed from list of color's pieces
+            # do this when backtracking/position eval is applied
+        app.activePiece = None
+        app.playerToMoveIdx += 1 
 
 def gameMode_hasCheckmate(app):
     pass # maybe just make this a regular method since it applies to both 
@@ -257,6 +269,9 @@ def gameMode_mousePressed(app, event):
         # else # if currPlayerColor == color of piece clicked
             # run existing code below
         if app.activePiece == None:
+            if (app.gameBoard[row][col].color != 
+                app.players[app.playerToMoveIdx % 2]):
+                return
             app.activePiece = app.gameBoard[row][col]
             # print(app.activePiece)
         
@@ -264,17 +279,18 @@ def gameMode_mousePressed(app, event):
             clickedPiece = app.gameBoard[row][col]
             if app.activePiece.color == clickedPiece.color:
                 app.activePiece = clickedPiece
-            else: # pieces are different colors- make this an elif
+            else: # pieces are different colors
                 gameMode_takePiece(app, row, col)
-                pass
+                
 
     else: # user clicked on an empty space
         # print(f"empty space clicked! {app.activePiece}")
-        if app.activePiece != None and gameMode_isValidMove(app, row, col):
+        if app.activePiece != None:
             # print(app.activePiece, gameMode_isValidMove(app, row, col))
-            gameMode_makeMove(app, row, col)  
+            gameMode_makeMove(app, row, col)
+            
 
-    print(app.activePiece)
+    # print(app.activePiece)
 
 def gameMode_keyPressed(app, event):
     # if (event.key == 'p'):
