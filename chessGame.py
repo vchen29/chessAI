@@ -167,20 +167,32 @@ def gameMode_timerFired(app):
 ########################
 # LOGIC FUNCTIONS
 ######################## 
-                                     
-def gameMode_isValidMove(app, moveRow, moveCol): # maybe merge and j make this "isValidMove()"
+
+# checks if the move is a valid move                      
+def gameMode_isValidMove(app, moveRow, moveCol):
     # print("**** NEW PIECE ****")
     currRow, currCol = app.activePiece.row, app.activePiece.col
     dRow, dCol = (moveRow - currRow), (moveCol - currCol)
+
     if ((dRow, dCol) not in app.activePiece.posMoves 
         or rowColInBounds(app, moveRow, moveCol) == False):
         return False
 
     result = gameMode_checkBlockingPieces(app, moveRow, moveCol)
-    if result == True or result == "takePiece":
+    if result == True or result == "takePiece": 
+        # create separate takePiece condition after isValidTake is written
         return True
     else:
         return False
+
+# split up regular move and a take move such that you can accomodate the 
+# unique case for pawns..?
+# NOTE: adjust drawMoves() method, gameMode_makeMove(), gameMode_isValidMove(), etc.
+
+# def gameMode_isValidTakeMove(app, moveRow, moveCol):
+    # if move is in posMoves and takeMoves:
+        # return True
+    # return False
 
 def gameMode_checkBlockingPieces(app, moveRow, moveCol):
     currRow, currCol = app.activePiece.row, app.activePiece.col
@@ -257,11 +269,42 @@ def gameMode_takePiece(app, row, col):
         app.activePiece = None
         app.playerToMoveIdx += 1
 
-def gameMode_hasCheck(app):
+# maybe trash this whole method (can merge with checkmate function)
+# def gameMode_hasCheck(app, color):
+#     for piece in eval(f"app.{color}Pieces"):
+#         # if piece is knight
+#             # diff case bc knight can jump
+#         # for move in all piece.takeMoves: # maybe write getValidMoves...?
+#             # if a piece can take a piece and piece == King
+#                 # check for mate?
+#                 # return True
+#         pass
 
-    pass
+def gameMode_hasCheckOrMate(app, color):
+    # hasCheck = False
+    # posChecks = [False] * len(validMoves of king)
 
-def gameMode_hasCheckmate(app):
+    # for possibleMove from where opposing colored king is, including currPos:
+        # if nearby L positions has knight:
+            # hasCheck = True
+            # posChecks[idx] = True
+            # continue
+        # check for drow, dcol in every direction of king's possible move position:
+            # if piece of opposite color is reached:
+                # if the piece can attack the king:
+                    # hasCheck = True
+                    # posChecks[idx] = True
+                    # continue
+        # if hasCheck: (if it passed everything without continuing, the position works)    
+            # return "check"
+    # ^^ break the part above this (excuding loop) into checking for check
+    # then in the mate function chcek all positions, adn if check returns true for all return true for mate
+
+    # at this point (post-loop):
+        # 1) all positions were checked
+        # 2) all positions were unchecked
+    # return posChecks == [True] * len(validMoves of king)
+       
     pass # maybe just make this a regular method since it applies to both 
          # 2 player and AI version of game (perhaps do same for other methods)
 
