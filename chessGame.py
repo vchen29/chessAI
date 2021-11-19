@@ -269,8 +269,11 @@ def gameMode_takePiece(app, row, col):
         app.activePiece = None
         app.playerToMoveIdx += 1
 
-# maybe trash this whole method (can merge with checkmate function)
-# def gameMode_hasCheck(app, color):
+
+def gameMode_isChecked(app, color):
+    for (dx, dy) in Knight.posMoves:
+        # king = eval(f"app.{color}Pieces.get(")
+        pass
 #     for piece in eval(f"app.{color}Pieces"):
 #         # if piece is knight
 #             # diff case bc knight can jump
@@ -279,6 +282,7 @@ def gameMode_takePiece(app, row, col):
 #                 # check for mate?
 #                 # return True
 #         pass
+
 
 def gameMode_hasCheckOrMate(app, color):
     # hasCheck = False
@@ -457,6 +461,7 @@ def getRowCol(app, x, y):
 #     return image.cachedPhotoImage
 
 # def loadChessPieceImages(app):
+    # chess sprites source: https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Chess_Pieces_Sprite.svg/640px-Chess_Pieces_Sprite.svg.png
 #     chessPieces = app.loadImage('chessSprites.png')
 #     whiteKingImg = chessPieces.crop((0, 0, 200, 200))
 #     blackKingImg = chessPieces.crop((0, 200, 200, 400))
