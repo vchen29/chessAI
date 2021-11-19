@@ -241,14 +241,14 @@ def gameMode_checkBlockingPieces(app, moveRow, moveCol):
 def gameMode_makeMove(app, row, col):
     if gameMode_isValidMove(app, row, col):
         app.gameBoard[app.activePiece.row][app.activePiece.col] = 0
-        eval(f"app.{app.activePiece.color}Pieces.remove(app.activePiece)")
+        eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].remove(app.activePiece)")
 
         app.activePiece.row, app.activePiece.col = row, col
         app.activePiece.moved = True
         # if type(app.activePiece == Pawn): # remove pawn jumping option
         #     app.activePiece.posMoves.pop()
         app.gameBoard[row][col] = app.activePiece
-        eval(f"app.{app.activePiece.color}Pieces.add(app.activePiece)")
+        eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].add(app.activePiece)")
 
         app.activePiece = None
         app.playerToMoveIdx += 1 
@@ -261,7 +261,7 @@ def gameMode_takePiece(app, row, col):
         app.activePiece.moved = True
 
         takenPiece = app.gameBoard[row][col]
-        eval(f"app.{takenPiece.color}Pieces.remove(takenPiece)")
+        eval(f"app.{takenPiece.color}Pieces[str(takenPiece)].remove(takenPiece)")
 
         app.gameBoard[row][col] = app.activePiece
         # insert code where taken piece is removed from list of color's pieces
@@ -345,7 +345,6 @@ def gameMode_mousePressed(app, event):
                 app.activePiece = clickedPiece
             else: # pieces are different colors
                 gameMode_takePiece(app, row, col)
-                
 
     else: # user clicked on an empty space
         # print(f"empty space clicked! {app.activePiece}")
@@ -486,8 +485,8 @@ def initializeBoard(app):
         bPawn, wPawn = Pawn(1, col, "black"), Pawn(app.rows - 2, col, "white")
         app.gameBoard[1][col] = bPawn
         app.gameBoard[app.rows - 2][col] = wPawn
-        app.blackPieces.add(bPawn)
-        app.whitePieces.add(wPawn)
+        app.blackPieces["P"].add(bPawn)
+        app.whitePieces["P"].add(wPawn)
     
     for row in {0, app.rows - 1}:
         if row == 0: 
@@ -497,26 +496,29 @@ def initializeBoard(app):
 
         for col in {0, app.cols - 1}:
             newRook = Rook(row, col, color)
+            print(str(newRook))
             app.gameBoard[row][col] = newRook
-            eval(f"app.{color}Pieces.add(newRook)")
+            eval(f"app.{color}Pieces[str(newRook)].add(newRook)")
         for col in {1, app.cols - 2}:
             newKnight = Knight(row, col, color)
             app.gameBoard[row][col] = newKnight
-            eval(f"app.{color}Pieces.add(newKnight)")
+            eval(f"app.{color}Pieces[str(newKnight)].add(newKnight)")
         for col in {2, app.cols - 3}:
             newBishop = Bishop(row, col, color)
             app.gameBoard[row][col] = newBishop
-            eval(f"app.{color}Pieces.add(newBishop)")
+            eval(f"app.{color}Pieces[str(newBishop)].add(newBishop)")
 
         if color == "white":
             wQueen, wKing = Queen(row, 3, color), King(row, 4, color)
             app.gameBoard[row][3], app.gameBoard[row][4] = wQueen, wKing
-            app.whitePieces = app.whitePieces.union({wQueen, wKing})
+            app.whitePieces["Q"] = {wQueen}
+            app.whitePieces["K"] = {wKing}
         else:
             bQueen, bKing = Queen(row, 4, color), King(row, 3, color)
             app.gameBoard[row][4] = bQueen
             app.gameBoard[row][3] = bKing
-            app.blackPieces = app.blackPieces.union({bQueen, bKing})
+            app.blackPieces["Q"] = {bQueen}
+            app.blackPieces["K"] = {bKing}
 
 # initializes all app variables
 def appStarted(app):
@@ -541,8 +543,10 @@ def appStarted(app):
     app.playerToMoveIdx = 0
     app.players = ["white", "black"]
 
-    app.whitePieces = set()
-    app.blackPieces = set()
+    app.whitePieces = {"P": set(), "B": set(), "N": set(), 
+                       "R": set(), "K": set(), "Q": set()}
+    app.blackPieces = {"P": set(), "B": set(), "N": set(), 
+                       "R": set(), "K": set(), "Q": set()}
 
     app.gameBoard = [[0] * 8 for i in range(8)]
     initializeBoard(app)
