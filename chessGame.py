@@ -27,9 +27,12 @@ class ChessPiece(object):
         self.posMoves = set()
         self.takeMoves = self.posMoves
         self.value = 0
-
+        
     def __hash__(self):
         return hash(self.hashables)
+
+    def hasMove(self, moveRow, moveCol):
+        return (moveRow, moveCol) in self.posMoves
 
     # def move(self, newRow, newCol):
     #     # check if in valid move
@@ -95,6 +98,13 @@ class Bishop(ChessPiece):
         return "B"
 
 class Knight(ChessPiece):
+    moves = set()
+    for drow in {-2, -1, 1, 2}:
+            for dcol in {-2, -1, 1, 2}:
+                if abs(drow) == abs(dcol):
+                    continue
+                moves.add((drow, dcol))
+
     def __init__(self, row, col, color):
         super().__init__(row, col, color)
 
@@ -239,8 +249,11 @@ def gameMode_checkBlockingPieces(app, moveRow, moveCol):
 
 # if move is valid, make move and adjust set of same-color pieces accordingly
 def gameMode_makeMove(app, row, col):
+    oldRow, oldCol = app.activePiece.row, app.activePiece.col
+    oldMoved = app.activePiece.moved
+
     if gameMode_isValidMove(app, row, col):
-        app.gameBoard[app.activePiece.row][app.activePiece.col] = 0
+        app.gameBoard[oldRow][oldCol] = 0
         eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].remove(app.activePiece)")
 
         app.activePiece.row, app.activePiece.col = row, col
@@ -249,65 +262,115 @@ def gameMode_makeMove(app, row, col):
         #     app.activePiece.posMoves.pop()
         app.gameBoard[row][col] = app.activePiece
         eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].add(app.activePiece)")
+        
+        # maybe make this into its own function?
+        if gameMode_isChecked(app, app.activePiece.color):
+            app.gameBoard[app.activePiece.row][app.activePiece.col] = 0
+            eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].remove(app.activePiece)")
+
+            app.activePiece.row, app.activePiece.col = oldRow, oldCol
+            app.activePiece.moved = oldMoved
+            app.gameBoard[oldRow][oldCol] = app.activePiece
+            eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].add(app.activePiece)")
+            return
+
+        oppColor = getOpposingColor(app, app.activePiece)
+        if gameMode_isChecked(app, oppColor):
+            app.checked = oppColor
+        else:
+            app.checked = None
 
         app.activePiece = None
         app.playerToMoveIdx += 1 
 
+# this function is SO similar to makeMove -- maybe merge them before you get too far?
 # if move is valid, take piece and remove piece from respective set of pieces
 def gameMode_takePiece(app, row, col):
+    oldRow, oldCol = app.activePiece.row, app.activePiece.col
+    oldMoved = app.activePiece.moved
+
     if gameMode_isValidMove(app, row, col):
-        app.gameBoard[app.activePiece.row][app.activePiece.col] = 0
+        app.gameBoard[oldRow][oldCol] = 0
+        eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].remove(app.activePiece)")
+
         app.activePiece.row, app.activePiece.col = row, col
         app.activePiece.moved = True
-
+        # if type(app.activePiece == Pawn): # remove pawn jumping option
+        #     app.activePiece.posMoves.pop()
         takenPiece = app.gameBoard[row][col]
         eval(f"app.{takenPiece.color}Pieces[str(takenPiece)].remove(takenPiece)")
 
         app.gameBoard[row][col] = app.activePiece
-        # insert code where taken piece is removed from list of color's pieces
-            # do this when backtracking/position eval is applied
+        eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].add(app.activePiece)")
+        
+        if gameMode_isChecked(app, app.activePiece.color):
+            app.gameBoard[app.activePiece.row][app.activePiece.col] = 0
+            eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].remove(app.activePiece)")
+
+            app.activePiece.row, app.activePiece.col = oldRow, oldCol
+            app.activePiece.moved = oldMoved
+            app.gameBoard[oldRow][oldCol] = app.activePiece
+            eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].add(app.activePiece)")
+
+            eval(f"app.{takenPiece.color}Pieces[str(takenPiece)].add(takenPiece)")
+            return
+        oppColor = getOpposingColor(app, app.activePiece)
+        if gameMode_isChecked(app, oppColor):
+            app.checked = oppColor
+        else:
+            app.checked = None
+            
         app.activePiece = None
         app.playerToMoveIdx += 1
 
-
 def gameMode_isChecked(app, color):
-    for (dx, dy) in Knight.posMoves:
-        # king = eval(f"app.{color}Pieces.get(")
-        pass
-#     for piece in eval(f"app.{color}Pieces"):
-#         # if piece is knight
-#             # diff case bc knight can jump
-#         # for move in all piece.takeMoves: # maybe write getValidMoves...?
-#             # if a piece can take a piece and piece == King
-#                 # check for mate?
-#                 # return True
-#         pass
+    king = eval(f"app.{color}Pieces['K'].pop()")
+    eval(f"app.{color}Pieces['K'].add(king)")
+    print("Checking for checks!")
+    for (drow, dcol) in Knight.moves:
+        row, col = king.row + drow, king.col + dcol
+        if rowColInBounds(app, row, col):
+            tempPiece = app.gameBoard[row][col]
+            if type(tempPiece) == Knight and tempPiece.color != king.color:
+                app.checked = color
+                return True
+    print("Finished knight loop!")
+    print(f"Starting {color} king loop...")
+    for dirRow, dirCol in king.posMoves:
+        row, col = king.row + dirRow, king.col + dirCol
+        while rowColInBounds(app, row, col):
+            boardSq = app.gameBoard[row][col]
+            if isinstance(boardSq, ChessPiece) and boardSq.color != king.color:
+                print(row, col, boardSq)
+                if boardSq.hasMove(king.row - row, king.col - col):
+                    app.checked = color
+                    return True
+            elif isinstance(boardSq, ChessPiece) and boardSq.color == king.color:
+                break
+            row += dirRow
+            col += dirCol
+    print("Finished king loop... returning False")
+    return False
 
-
-def gameMode_hasCheckOrMate(app, color):
-    # hasCheck = False
-    # posChecks = [False] * len(validMoves of king)
-
+def gameMode_isMated(app, color):
+    # NOTE: only run "isMated" if "isChecked" == True!! (would save efficiency)
     # for possibleMove from where opposing colored king is, including currPos:
-        # if nearby L positions has knight:
-            # hasCheck = True
-            # posChecks[idx] = True
-            # continue
-        # check for drow, dcol in every direction of king's possible move position:
-            # if piece of opposite color is reached:
-                # if the piece can attack the king:
-                    # hasCheck = True
-                    # posChecks[idx] = True
-                    # continue
-        # if hasCheck: (if it passed everything without continuing, the position works)    
-            # return "check"
-    # ^^ break the part above this (excuding loop) into checking for check
-    # then in the mate function chcek all positions, adn if check returns true for all return true for mate
+        # if not checked in a position, return False (not mated)
 
-    # at this point (post-loop):
-        # 1) all positions were checked
-        # 2) all positions were unchecked
-    # return posChecks == [True] * len(validMoves of king)
+    # check if any pieces can 1) take the piece 2) block the piece
+        # maybe make a helper function for checked
+        #   --> 1) "isChecked()" returns True/False and which piece
+        #   --> 2) "checkPiece()" returns which piece is checking the king (wrapper function)
+        #   --> 3) "boolIsChecked()" returns True/False only
+        # once all pieces that are checking king are obtained:
+        #   loop through all pieces that are same color as king
+        #   --> see if piece can take
+        #   --> see if piece can block
+        #           try to do calcs to smartly block moves instead of trial/error
+    # checked all options: return False
+
+
+
        
     pass # maybe just make this a regular method since it applies to both 
          # 2 player and AI version of game (perhaps do same for other methods)
@@ -333,9 +396,9 @@ def gameMode_mousePressed(app, event):
         # else # if currPlayerColor == color of piece clicked
             # run existing code below
         if app.activePiece == None:
-            if (app.gameBoard[row][col].color != 
-                app.players[app.playerToMoveIdx % 2]):
-                return
+            # if (app.gameBoard[row][col].color != 
+            #     app.players[app.playerToMoveIdx % 2]):
+            #     return
             app.activePiece = app.gameBoard[row][col]
             # print(app.activePiece)
         
@@ -410,12 +473,19 @@ def gameMode_drawPieces(app, canvas):
                                    text = str(piece), font = "Arial 40",
                                    fill = piece.color)
 
+def gameMode_drawCheck(app, canvas):
+    canvas.create_text(app.width / 2, app.margin, 
+                       text = f"{app.checked} check!", font = "Arial 20",
+                       fill = "black")
+
 def gameMode_redrawAll(app, canvas):
     gameMode_drawBoard(app, canvas)
     gameMode_drawPieces(app, canvas)
     # canvas.create_oval(100, 100, 110, 110, fill = "blue")
     if app.activePiece != None:
         gameMode_drawMoves(app, canvas)
+    if app.checked != None:
+        gameMode_drawCheck(app, canvas)
     # canvas.create_image(200, 200, image=ImageTk.PhotoImage(app.whitePawnImg))
 
 
@@ -423,6 +493,11 @@ def gameMode_redrawAll(app, canvas):
 # GENERAL CONTROLS
 #################################################
 
+def getOpposingColor(app, piece):
+    if piece.color == "white":
+        return "black"
+    else:
+        return "white"
 # return True if x, y is inside the chess board
 def inBoard(app, x, y):
     # checks if click is outside board entirely
@@ -496,7 +571,6 @@ def initializeBoard(app):
 
         for col in {0, app.cols - 1}:
             newRook = Rook(row, col, color)
-            print(str(newRook))
             app.gameBoard[row][col] = newRook
             eval(f"app.{color}Pieces[str(newRook)].add(newRook)")
         for col in {1, app.cols - 2}:
@@ -547,6 +621,9 @@ def appStarted(app):
                        "R": set(), "K": set(), "Q": set()}
     app.blackPieces = {"P": set(), "B": set(), "N": set(), 
                        "R": set(), "K": set(), "Q": set()}
+    
+    app.checked = None
+    app.mated = None
 
     app.gameBoard = [[0] * 8 for i in range(8)]
     initializeBoard(app)
