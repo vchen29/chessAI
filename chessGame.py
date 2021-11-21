@@ -158,13 +158,45 @@ class Queen(ChessPiece):
 # HOME SCREEN
 #################################################
 def homeScreenMode_drawScreen(app, canvas):
-    pass
+    
+    canvas.create_rectangle(0, 0, app.width, app.height,
+                            fill = "tan")
+    canvas.create_text(app.width / 2, app.chessAITextY,
+                       text = "Chess AI", font = "Helvetica 70")
+    canvas.create_rectangle(app.twoPlayerButtonX - app.buttonWidth, 
+                            app.gameModeButtonY - app.buttonHeight,
+                            app.twoPlayerButtonX + app.buttonWidth,
+                            app.gameModeButtonY + app.buttonHeight,
+                            fill = "brown")
+    canvas.create_text(app.twoPlayerButtonX, app.gameModeButtonY,
+                       text = "Two Players", fill = "black",
+                       font = "Helvetica 25")
+    canvas.create_rectangle(app.aiModeButtonX - app.buttonWidth, 
+                            app.gameModeButtonY - app.buttonHeight,
+                            app.aiModeButtonX + app.buttonWidth,
+                            app.gameModeButtonY + app.buttonHeight,
+                            fill = "brown")
+    canvas.create_text(app.aiModeButtonX, app.gameModeButtonY,
+                       text = "AI Mode!", fill = "black",
+                       font = "Helvetica 25")
 
 def homeScreenMode_mousePressed(app, event):
-    pass
+    x, y = event.x, event.y
+    # if clicked inside 2 player button
+    if (x >= (app.twoPlayerButtonX - app.buttonWidth) 
+        and x <= (app.twoPlayerButtonX + app.buttonWidth)
+        and y >= (app.gameModeButtonY - app.buttonHeight) 
+        and y <= (app.gameModeButtonY + app.buttonHeight)):
+        app.mode = "gameMode"
+    elif (x >= (app.aiModeButtonX - app.buttonWidth) 
+          and x <= (app.aiModeButtonX + app.buttonWidth)
+          and y >= (app.gameModeButtonY - app.buttonHeight) 
+          and y <= (app.gameModeButtonY + app.buttonHeight)):
+          pass
+    
 
 def homeScreenMode_redrawAll(app, canvas):
-    pass
+    homeScreenMode_drawScreen(app, canvas)
 
 #################################################
 # GAME MODE
@@ -314,19 +346,21 @@ def gameMode_takePiece(app, row, col):
 
             eval(f"app.{takenPiece.color}Pieces[str(takenPiece)].add(takenPiece)")
             return
+
         oppColor = getOpposingColor(app, app.activePiece)
         if gameMode_isChecked(app, oppColor):
             app.checked = oppColor
         else:
             app.checked = None
-            
+
         app.activePiece = None
         app.playerToMoveIdx += 1
 
 def gameMode_isChecked(app, color):
+    # print("starting check test!")
     king = eval(f"app.{color}Pieces['K'].pop()")
     eval(f"app.{color}Pieces['K'].add(king)")
-    print("Checking for checks!")
+
     for (drow, dcol) in Knight.moves:
         row, col = king.row + drow, king.col + dcol
         if rowColInBounds(app, row, col):
@@ -334,22 +368,23 @@ def gameMode_isChecked(app, color):
             if type(tempPiece) == Knight and tempPiece.color != king.color:
                 app.checked = color
                 return True
-    print("Finished knight loop!")
-    print(f"Starting {color} king loop...")
+    # print("... no knight checks!")
     for dirRow, dirCol in king.posMoves:
         row, col = king.row + dirRow, king.col + dirCol
         while rowColInBounds(app, row, col):
             boardSq = app.gameBoard[row][col]
             if isinstance(boardSq, ChessPiece) and boardSq.color != king.color:
-                print(row, col, boardSq)
+                # print(row, col, boardSq)
                 if boardSq.hasMove(king.row - row, king.col - col):
                     app.checked = color
+                    # print(f"Checked by {str(boardSq)}!")
                     return True
+                else:
+                    break
             elif isinstance(boardSq, ChessPiece) and boardSq.color == king.color:
                 break
             row += dirRow
             col += dirCol
-    print("Finished king loop... returning False")
     return False
 
 def gameMode_isMated(app, color):
@@ -386,8 +421,9 @@ def gameMode_mousePressed(app, event):
     row, col = getRowCol(app, x, y)
     currPlayerColor = app.players[app.playerToMoveIdx % 2]
 
+    clickedSquare = app.gameBoard[row][col]
     # user clicked on a chess piece
-    if isinstance(app.gameBoard[row][col], ChessPiece):
+    if isinstance(clickedSquare, ChessPiece):
         # if currPlayerColor != color of piece clicked
             # if is valid move
                 # take piece
@@ -395,17 +431,18 @@ def gameMode_mousePressed(app, event):
                 # do nothing
         # else # if currPlayerColor == color of piece clicked
             # run existing code below
-        if app.activePiece == None:
+        
+        if app.activePiece == None and currPlayerColor == clickedSquare.color:
             # if (app.gameBoard[row][col].color != 
             #     app.players[app.playerToMoveIdx % 2]):
             #     return
-            app.activePiece = app.gameBoard[row][col]
+            app.activePiece = clickedSquare
             # print(app.activePiece)
-        
+        elif app.activePiece == None and currPlayerColor != clickedSquare.color:
+            return
         else: # app.activePiece != None
-            clickedPiece = app.gameBoard[row][col]
-            if app.activePiece.color == clickedPiece.color:
-                app.activePiece = clickedPiece
+            if app.activePiece.color == clickedSquare.color:
+                app.activePiece = clickedSquare
             else: # pieces are different colors
                 gameMode_takePiece(app, row, col)
 
@@ -594,8 +631,17 @@ def initializeBoard(app):
             app.blackPieces["Q"] = {bQueen}
             app.blackPieces["K"] = {bKing}
 
+def initiateHomeScreenVariables(app):
+    app.buttonWidth, app.buttonHeight = 100, 30
+    app.chessAITextY = app.height * (1/4)
+    app.gameModeButtonY = app.height * (1/2)
+    app.twoPlayerButtonX = app.width * (1/4)
+    app.aiModeButtonX = app.width * (3/4)
+
 # initializes all app variables
 def appStarted(app):
+    initiateHomeScreenVariables(app)
+
     # board-related variables
     app.margin = 30
     app.rows, app.cols = 8, 8
@@ -611,7 +657,7 @@ def appStarted(app):
     # app.whitePawnImg = chessPieces.crop((1000, 0, 1200, 200))
 
     # game-related variables
-    app.mode = 'gameMode'
+    app.mode = 'homeScreenMode'
 
     app.activePiece = None
     app.playerToMoveIdx = 0
@@ -623,7 +669,7 @@ def appStarted(app):
                        "R": set(), "K": set(), "Q": set()}
     
     app.checked = None
-    app.mated = None
+    app.gameOver = False
 
     app.gameBoard = [[0] * 8 for i in range(8)]
     initializeBoard(app)
