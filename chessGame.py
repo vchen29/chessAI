@@ -188,9 +188,113 @@ def homeScreenMode_redrawAll(app, canvas):
 #################################################
 # AI MODE
 #################################################
-def gameMode_timerFired(app):
-    # use to test if it's the computer's turn?
-    pass
+def aiMode_timerFired(app):
+    # tests to see if it's computer's turn
+    if app.playerToMoveIdx % 2 == 1:
+        aiMode_makeAIPlayerMove(app)
+
+def aiMode_mousePressed(app, event):
+    if app.gameOver == True:
+        return
+    
+    # assuming player is always white, stops mouse pressed if it's not white's turn
+    if app.playerToMoveIdx % 2 != 0:
+        return
+
+    x, y = event.x, event.y
+    if inBoard(app, x, y) == False:
+        return
+    row, col = getRowCol(app, x, y)
+    currPlayerColor = app.players[app.playerToMoveIdx % 2]
+
+    clickedSquare = app.gameBoard[row][col]
+    # user clicked on a chess piece
+    if isinstance(clickedSquare, ChessPiece):
+        # print("clicked on chess piece!")
+        if app.activePiece == None and currPlayerColor == clickedSquare.color:
+            # print("clicked: chess piece of player's color")
+            # if (app.gameBoard[row][col].color != 
+            #     app.players[app.playerToMoveIdx % 2]):
+            #     return
+            app.activePiece = clickedSquare
+            app.validMoves = getValidMoves(app, app.activePiece)
+            app.validTakes = getValidTakes(app, app.activePiece)
+            # print(app.activePiece)
+        elif app.activePiece == None and currPlayerColor != clickedSquare.color:
+            return
+        else: # app.activePiece != None
+            
+            if app.activePiece.color == clickedSquare.color:
+                app.activePiece = clickedSquare
+                app.validMoves = getValidMoves(app, app.activePiece)
+                app.validTakes = getValidTakes(app, app.activePiece)
+            else: # pieces are different colors
+                takePiece(app, row, col)
+
+    else: # user clicked on an empty space
+        # print(f"empty space clicked! {app.activePiece}")
+        if app.activePiece != None:
+            # print("attempting to make move...")
+            # print(app.activePiece, isValidMove(app, row, col))
+            makeMove(app, row, col)
+    # print(app.gameBoard)
+            
+
+    # print(app.activePiece)
+
+########################
+# DRAW FUNCTIONS
+######################## 
+
+# def getRandIdx(L):
+        
+def aiMode_makeAIPlayerMove(app):
+    seenIdxs = set()
+    pieceTypes = list(app.blackPieces.keys())
+
+    # iterates for the amount of pieces types there are
+    for i in range(len(pieceTypes)):
+        # generate random piece type to iterate through
+        randIdx = random.randint(0, len(pieceTypes) - 1)
+        while randIdx in seenIdxs:
+            randIdx = random.randint(0, len(pieceTypes) - 1)
+            if randIdx not in seenIdxs:
+                seenIdxs.add(randIdx)
+        pieceType = pieceTypes[randIdx]
+        
+        seenIdxs = set()
+        pieces = list(app.blackPieces[pieceType])
+        # iterates through all pieces of pieceType
+        for j in range(len(pieces)):
+            randIdx = random.randint(0, len(pieces) - 1)
+            while randIdx in seenIdxs:
+                randIdx = random.randint(0, len(pieces) - 1)
+                if randIdx not in seenIdxs:
+                    seenIdxs.add(randIdx)
+            piece = pieces[randIdx]
+
+            seenIdxs = set()
+            moves = list(piece.posMoves.union(piece.takeMoves))
+            # iterate through all possible moves/takes for piece
+            for k in range(len(moves)):
+                randIdx = random.randint(0, len(moves) - 1)
+                while randIdx in seenIdxs:
+                    randIdx = random.randint(0, len(moves) - 1)
+                    if randIdx not in seenIdxs:
+                        seenIdxs.add(randIdx)
+                move = moves[randIdx]
+                dRow, dCol = move
+
+                moveRow, moveCol = piece.row + dRow, piece.col + dCol
+                # if move is valid, AI completes move
+                if isValidMove(app, moveRow, moveCol, piece):
+                    app.activePiece = piece
+                    makeMove(app, moveRow, moveCol)
+                    return
+                elif isValidTake(app, moveRow, moveCol, piece):
+                    app.activePiece = piece
+                    takePiece(app, moveRow, moveCol)
+                    return
 
 ########################
 # DRAW FUNCTIONS
@@ -245,7 +349,7 @@ def isValidMove(app, moveRow, moveCol, piece):
         return False
     # elif: (if move the piece and it leaves your piece vulnerable to check)
     #     pass
-    print("... passed all tests so far")
+    # print("... passed all tests so far")
     hasNoBlockingPieces = checkBlockingPieces(app, moveRow, moveCol, piece)
     isChecked = attemptUndoCheck(app, moveRow, moveCol, piece)
     print(hasNoBlockingPieces, isChecked)
@@ -253,7 +357,7 @@ def isValidMove(app, moveRow, moveCol, piece):
         # create separate takePiece condition after isValidTake is written
         return True
     else:
-        print("fails here")
+        # print("fails here")
         return False
 
 def isValidTake(app, takeRow, takeCol, piece):
@@ -323,9 +427,9 @@ def checkBlockingPieces(app, moveRow, moveCol, piece):
 def makeMove(app, row, col):
     oldRow, oldCol = app.activePiece.row, app.activePiece.col
     oldMoved = app.activePiece.moved
-    print(f"isValidMove: {isValidMove(app, row, col, app.activePiece)}")
+    # print(f"isValidMove: {isValidMove(app, row, col, app.activePiece)}")
     if (isValidMove(app, row, col, app.activePiece)):
-        print('is valid move!')
+        # print('is valid move!')
         app.gameBoard[oldRow][oldCol] = 0
         eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].remove(app.activePiece)")
 
@@ -335,23 +439,12 @@ def makeMove(app, row, col):
         #     app.activePiece.posMoves.pop()
         app.gameBoard[row][col] = app.activePiece
         eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].add(app.activePiece)")
-        
-        # maybe make this into its own function?
-        if isChecked(app, app.activePiece.color):
-            app.gameBoard[app.activePiece.row][app.activePiece.col] = 0
-            eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].remove(app.activePiece)")
-
-            app.activePiece.row, app.activePiece.col = oldRow, oldCol
-            app.activePiece.moved = oldMoved
-            app.gameBoard[oldRow][oldCol] = app.activePiece
-            eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].add(app.activePiece)")
-            return
 
         oppColor = getOpposingColor(app, app.activePiece)
         if isChecked(app, oppColor):
             app.checked = oppColor
             if isMated(app, oppColor):
-                print("setting gameOver to True...")
+                # print("setting gameOver to True...")
                 app.gameOver = True
                 return
         else:
@@ -361,7 +454,7 @@ def makeMove(app, row, col):
         app.validMoves = set()
         app.validTakes = set()
         app.playerToMoveIdx += 1 
-    print("not valid move!")
+    # print("not valid move!")
 
 # this function is SO similar to makeMove -- maybe merge them before you get too far?
 # if move is valid, take piece and remove piece from respective set of pieces
@@ -383,24 +476,12 @@ def takePiece(app, row, col):
 
         app.gameBoard[row][col] = app.activePiece
         eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].add(app.activePiece)")
-        
-        # if isChecked(app, app.activePiece.color):
-        #     app.gameBoard[app.activePiece.row][app.activePiece.col] = 0
-        #     eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].remove(app.activePiece)")
-
-        #     app.activePiece.row, app.activePiece.col = oldRow, oldCol
-        #     app.activePiece.moved = oldMoved
-        #     app.gameBoard[oldRow][oldCol] = app.activePiece
-        #     eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].add(app.activePiece)")
-        #     app.gameBoard[row][col] = takenPiece
-        #     eval(f"app.{takenPiece.color}Pieces[str(takenPiece)].add(takenPiece)")
-        #     return
 
         oppColor = getOpposingColor(app, app.activePiece)
         if isChecked(app, oppColor):
             app.checked = oppColor
             if isMated(app, oppColor):
-                print("setting gameOver to True...")
+                # print("setting gameOver to True...")
                 app.gameOver = True
                 return
         else:
@@ -410,7 +491,7 @@ def takePiece(app, row, col):
         app.validMoves = set()
         app.validTakes = set()
         app.playerToMoveIdx += 1
-        print(app.gameBoard)
+        # print(app.gameBoard)
 
 def isChecked(app, color):
     return getCheckedAndPieces(app, color)[1]
@@ -545,7 +626,7 @@ def attemptUndoCheck(app, tempRow, tempCol, piece):
     dRow, dCol = tempRow - piece.row, tempCol - piece.col
     if isinstance(tempBoardSq, ChessPiece) and tempBoardSq.color != piece.color:
         oppColorPiece = tempBoardSq
-        print(f"hasTake branch running for {str(piece)} to {tempRow} {tempCol}")
+        # print(f"hasTake branch running for {str(piece)} to {tempRow} {tempCol}")
         if piece.hasTake(dRow, dCol):
             eval(f"app.{oppColor}Pieces[str(oppColorPiece)].remove(oppColorPiece)")
             app.gameBoard[tempRow][tempCol] = piece
@@ -557,14 +638,14 @@ def attemptUndoCheck(app, tempRow, tempCol, piece):
 
             result = None
             if isChecked(app, color):
-                print("move results in check!")
+                # print("move results in check!")
                 result = False
             else:
-                print("move isn't check!")
+                # print("move isn't check!")
                 result = True
             
             app.gameBoard[tempRow][tempCol] = oppColorPiece
-            
+
             app.gameBoard[piece.row][piece.col] = piece
             eval(f"app.{color}Pieces[str(pieceCopy)].remove(pieceCopy)")
             eval(f"app.{color}Pieces[str(piece)].add(piece)")
@@ -573,9 +654,9 @@ def attemptUndoCheck(app, tempRow, tempCol, piece):
             app.blackPieces = blackPiecesCopy
             return result
     else:
-        print(f"hasMove branch running for {str(piece)} to {tempRow} {tempCol}")
+        # print(f"hasMove branch running for {str(piece)} to {tempRow} {tempCol}")
         if piece.hasMove(dRow, dCol): 
-            print('piece does have move!')
+            # print('piece does have move!')
             app.gameBoard[tempRow][tempCol] = piece
             app.gameBoard[piece.row][piece.col] = 0
             eval(f"app.{color}Pieces[str(piece)].remove(piece)")
@@ -615,9 +696,9 @@ def gameMode_mousePressed(app, event):
     clickedSquare = app.gameBoard[row][col]
     # user clicked on a chess piece
     if isinstance(clickedSquare, ChessPiece):
-        print("clicked on chess piece!")
+        # print("clicked on chess piece!")
         if app.activePiece == None and currPlayerColor == clickedSquare.color:
-            print("clicked: chess piece of player's color")
+            # print("clicked: chess piece of player's color")
             # if (app.gameBoard[row][col].color != 
             #     app.players[app.playerToMoveIdx % 2]):
             #     return
@@ -644,9 +725,7 @@ def gameMode_mousePressed(app, event):
             print("attempting to make move...")
             # print(app.activePiece, isValidMove(app, row, col))
             makeMove(app, row, col)
-    print(app.gameBoard)
-            
-
+    # print(app.gameBoard)
     # print(app.activePiece)
 
 def gameMode_keyPressed(app, event):
