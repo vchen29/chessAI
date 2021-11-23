@@ -34,6 +34,9 @@ class ChessPiece(object):
     def hasMove(self, moveRow, moveCol):
         return (moveRow, moveCol) in self.posMoves
 
+    def hasTake(self, takeRow, takeCol):
+        return (takeRow, takeCol) in self.takeMoves
+
     def copy(self):
         return type(self)(self.row, self.col, self.color)
         
@@ -216,7 +219,14 @@ def gameMode_timerFired(app):
 
 # checks if the move is a valid move                      
 def gameMode_isValidMove(app, moveRow, moveCol, piece):
+    if rowColInBounds(app, moveRow, moveCol) == False:
+        return False
     # print("**** NEW PIECE ****")
+    moveSquare = app.gameBoard[moveRow][moveCol]
+    if (isinstance(moveSquare, ChessPiece) and 
+          moveSquare.color != piece.color):
+        return False
+
     currRow, currCol = piece.row, piece.col
     dRow, dCol = (moveRow - currRow), (moveCol - currCol)
 
@@ -226,21 +236,45 @@ def gameMode_isValidMove(app, moveRow, moveCol, piece):
     # elif: (if move the piece and it leaves your piece vulnerable to check)
     #     pass
     result = gameMode_checkBlockingPieces(app, moveRow, moveCol, piece)
-    if result == True or result == "takePiece": 
-        # create separate takePiece condition after isValidTake is written
+    if result == True: 
         return True
     else:
         return False
 
+def gameMode_isValidTake(app, takeRow, takeCol, piece):
+    if rowColInBounds(app, takeRow, takeCol) == False:
+        return False
+    # check if takeRow, takeCol is a ChessPiece of opposite color to piece
+    # print(f"checking if {str(piece)} can take ({takeRow},{takeCol})")
+    takeSquare = app.gameBoard[takeRow][takeCol]
+    if (isinstance(takeSquare, ChessPiece) == False):
+        return False
+    elif (isinstance(takeSquare, ChessPiece) and 
+          takeSquare.color == piece.color):
+        return False
+    # print("passed instance tests...", end = "")
+    currRow, currCol = piece.row, piece.col
+    dRow, dCol = (takeRow - currRow), (takeCol - currCol)
+
+    if ((dRow, dCol) not in piece.takeMoves 
+        or rowColInBounds(app, takeRow, takeCol) == False):
+        return False
+    # print("is inside takeMoves...", end = "")
+    hasNoBlockingPieces = gameMode_checkBlockingPieces(app, takeRow, takeCol, piece)
+    if hasNoBlockingPieces:
+        # print("no blocking pieces... returning True")
+
+        return True
+    else:
+        # print("has blocking pieces... returning False")
+        return False
+    
 # split up regular move and a take move such that you can accomodate the 
 # unique case for pawns..?
 # NOTE: adjust drawMoves() method, gameMode_makeMove(), gameMode_isValidMove(), etc.
 
-# def gameMode_isValidTakeMove(app, moveRow, moveCol):
-    # if move is in posMoves and takeMoves:
-        # return True
-    # return False
-
+# returns True if no blocking pieces exist (move is valid)
+# returns False otherwise
 def gameMode_checkBlockingPieces(app, moveRow, moveCol, piece):
     currRow, currCol = piece.row, piece.col
     dRow, dCol = (moveRow - currRow), (moveCol - currCol)
@@ -260,7 +294,7 @@ def gameMode_checkBlockingPieces(app, moveRow, moveCol, piece):
         # print(f"moveRow, moveCol: {moveRow}, {moveCol} unitDRow, unitDCol: {unitDRow}, {unitDCol}")
         # loopCounter = 0
         # print(f"loop condition: {(tempRow != moveRow) or (tempCol != moveCol)}")
-        while (tempRow != moveRow + unitDRow) or (tempCol != moveCol + unitDCol):
+        while (tempRow != moveRow) or (tempCol != moveCol):
             # print(f"loop {loopCounter}:", tempRow, tempCol, type(app.gameBoard[tempRow][tempCol]))
             tempPiece = app.gameBoard[tempRow][tempCol]
             if (isinstance(tempPiece, ChessPiece) and
@@ -273,11 +307,11 @@ def gameMode_checkBlockingPieces(app, moveRow, moveCol, piece):
                   (tempRow != moveRow or tempCol != moveCol)):
                 return False
             
-            # if piece is diff color & is the desired moveRow, moveCol location
-            elif (isinstance(tempPiece, ChessPiece) and
-                  tempPiece.color != piece.color and
-                  (tempRow == moveRow or tempCol == moveCol)):
-                return "takePiece"
+            # # if piece is diff color & is the desired moveRow, moveCol location
+            # elif (isinstance(tempPiece, ChessPiece) and
+            #       tempPiece.color != piece.color and
+            #       (tempRow == moveRow or tempCol == moveCol)):
+            #     return "takePiece"
 
             tempRow += unitDRow
             tempCol += unitDCol
@@ -330,7 +364,7 @@ def gameMode_takePiece(app, row, col):
     oldRow, oldCol = app.activePiece.row, app.activePiece.col
     oldMoved = app.activePiece.moved
 
-    if gameMode_isValidMove(app, row, col, app.activePiece):
+    if gameMode_isValidTake(app, row, col, app.activePiece):
         app.gameBoard[oldRow][oldCol] = 0
         eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].remove(app.activePiece)")
 
@@ -397,7 +431,7 @@ def gameMode_getCheckedAndPieces(app, color):
             boardSq = app.gameBoard[row][col]
             if isinstance(boardSq, ChessPiece) and boardSq.color != king.color:
                 # print(row, col, boardSq)
-                if boardSq.hasMove(king.row - row, king.col - col):
+                if boardSq.hasTake(king.row - row, king.col - col):
                     checked = True
                     # print(f"Checked by {str(boardSq)}!")
                     checkingPieces.append(boardSq)
@@ -600,6 +634,7 @@ def gameMode_drawBoard(app, canvas):
 
 def gameMode_drawMoves(app, canvas):
     posMoves = app.activePiece.posMoves
+    posTakes = app.activePiece.takeMoves
     currRow, currCol = app.activePiece.row, app.activePiece.col
     for (dRow, dCol) in posMoves:
         moveRow, moveCol = currRow + dRow, currCol + dCol
@@ -610,9 +645,9 @@ def gameMode_drawMoves(app, canvas):
             canvas.create_oval(x - app.moveDotR, y - app.moveDotR,
                                x + app.moveDotR, y + app.moveDotR,
                                fill = app.moveDotColor)
-        elif (gameMode_isValidMove(app, moveRow, moveCol, app.activePiece) and
-              isinstance(app.gameBoard[moveRow][moveCol], ChessPiece) == True and
-              app.activePiece.color != app.gameBoard[moveRow][moveCol].color):
+    for (dRow, dCol) in posTakes:
+        moveRow, moveCol = currRow + dRow, currCol + dCol
+        if (gameMode_isValidTake(app, moveRow, moveCol, app.activePiece)):
             x0, y0, x1, y1 = getDimensions(app, moveRow, moveCol)
             x, y = (x0 + x1) / 2, (y0 + y1) / 2
             canvas.create_oval(x - app.moveDotR, y - app.moveDotR,
