@@ -33,24 +33,10 @@ class ChessPiece(object):
 
     def hasTake(self, takeRow, takeCol):
         return (takeRow, takeCol) in self.takeMoves
-        
+
     def copy(self):
         return type(self)(self.row, self.col, self.color)
         
-
-    # def move(self, newRow, newCol):
-    #     # check if in valid move
-    #     # if valid, make move
-    #     pass
-    
-    # def isValidMove(self, newRow, newCol):
-    #     # checks if newRow, newCol is in list of valid moves or in board
-    #     pass
-
-    # def getValidMoves(self):
-    #     # returns list of valid moves from current position
-    #     pass
-
 class Pawn(ChessPiece):
     def __init__(self, row, col, color):
         super().__init__(row, col, color)
@@ -63,8 +49,6 @@ class Pawn(ChessPiece):
             self.takeMoves = {(1, -1), (1, 1)}
         
         self.value = 1
-
-        # when self.moved switches to True, pop (0, +/-2)
 
     def __repr__(self):
         return "P"
@@ -79,8 +63,6 @@ class Rook(ChessPiece):
         self.takeMoves = self.posMoves
 
         self.value = 5
-
-        # castling no longer an option when self.moved = True
     
     def __repr__(self):
         return "R"
@@ -509,18 +491,23 @@ def attemptUndoCheck(app, tempRow, tempCol, piece):
     color = piece.color
     pieceCopy = piece.copy()
     checkingPiece = None
-    if piece.hasMove(tempRow, tempCol):
+    hasCheckingPiece = False
+
+    dRow, dCol = tempRow - piece.row, tempCol - piece.col
+    if piece.hasMove(dRow,dCol) or piece.hasTake(dRow, dCol):
         whitePiecesCopy = app.whitePieces.copy()
         blackPiecesCopy = app.blackPieces.copy()
         app.gameBoard[tempRow][tempCol] = piece
         app.gameBoard[piece.row][piece.col] = 0
         if isinstance(app.gameBoard[tempRow][tempCol], ChessPiece):
             checkingPiece = app.gameBoard[tempRow][tempCol]
-            eval(f"app.{oppColor}Pieces.remove(checkingPiece)")
-        eval(f"app.{color}Pieces.remove(piece)")
+            hasCheckingPiece = True
+            eval(f"app.{oppColor}Pieces[str(checkingPiece)].remove(checkingPiece)")
+        eval(f"app.{color}Pieces[str(piece)].remove(piece)")
 
         pieceCopy.row, pieceCopy.col = tempRow, tempCol
-        eval(f"app.{color}Piece.add(pieceCopy)")
+        # pieceCopy.moved = True
+        eval(f"app.{color}Pieces[str(pieceCopy)].add(pieceCopy)")
 
         result = None
         if isChecked(app, color):
@@ -528,10 +515,12 @@ def attemptUndoCheck(app, tempRow, tempCol, piece):
         else:
             result = True
 
-        eval(f"app.{color}Piece.remove(pieceCopy)")
-        eval(f"app.{color}Pieces.add(piece)")
-        if isinstance(app.gameBoard[tempRow][tempCol], ChessPiece):
-            eval(f"app.{oppColor}Pieces.add(checkingPiece)")
+        eval(f"app.{color}Pieces[str(pieceCopy)].remove(pieceCopy)")
+        eval(f"app.{color}Pieces[str(piece)].add(piece)")
+
+        if hasCheckingPiece:
+            eval(f"app.{oppColor}Pieces[str(checkingPiece)].add(checkingPiece)")
+
         app.whitePieces = whitePiecesCopy
         app.blackPieces = blackPiecesCopy
         return result
@@ -612,6 +601,7 @@ def gameMode_redrawAll(app, canvas):
 # GENERAL CONTROLS
 #################################################
 
+# draw chess game board
 def drawBoard(app, canvas):
     canvas.create_rectangle(0, 0, app.width, app.height,
                             fill = app.backgroundColor)
@@ -622,6 +612,7 @@ def drawBoard(app, canvas):
                                     fill = app.boardColors[(row + col) % 2],
                                     width = app.squareOutlineWidth)
 
+# draw pieces on game board
 def drawPieces(app, canvas):
     for rowIdx in range(len(app.gameBoard)):
         for colIdx in range(len(app.gameBoard[rowIdx])):
@@ -633,21 +624,27 @@ def drawPieces(app, canvas):
                 canvas.create_text((x0 + x1) / 2, (y0 + y1) / 2,
                                    text = str(piece), font = "Arial 40",
                                    fill = piece.color)
+
+# draw's small "check" message at top for whichever color is checked
 def drawCheck(app, canvas):
     canvas.create_text(app.width / 2, app.margin, 
                        text = f"{app.checked} check!", font = "Arial 20",
                        fill = "black")
 
+# returns set of valid moves for given piece
 def getValidMoves(app, piece):
     posMoves = piece.posMoves
     currRow, currCol = piece.row, piece.col
     validMoves = set()
     for (dRow, dCol) in posMoves:
         moveRow, moveCol = currRow + dRow, currCol + dCol
+        # print(f"{moveRow}, {moveCol}: {attemptUndoCheck(app, moveRow, moveCol, app.activePiece)}")
         if (isValidMove(app, moveRow, moveCol, app.activePiece)):
+            # and attemptUndoCheck(app, moveRow, moveCol, app.activePiece))
             validMoves.add((moveRow, moveCol))
     return validMoves
 
+# returns set of valid take moves for given piece
 def getValidTakes(app, piece):
     posTakes = piece.takeMoves
     currRow, currCol = piece.row, piece.col
@@ -655,9 +652,11 @@ def getValidTakes(app, piece):
     for (dRow, dCol) in posTakes:
         moveRow, moveCol = currRow + dRow, currCol + dCol
         if (isValidTake(app, moveRow, moveCol, app.activePiece)):
+            # and attemptUndoCheck(app, moveRow, moveCol, app.activePiece) == False):
             validTakes.add((moveRow, moveCol))
     return validTakes
 
+# draws player's avaliable moves on canvas
 def drawMoves(app, canvas):
     for (moveRow, moveCol) in getValidMoves(app, app.activePiece):
         x0, y0, x1, y1 = getDimensions(app, moveRow, moveCol)
@@ -673,6 +672,7 @@ def drawMoves(app, canvas):
                                x + app.moveDotR, y + app.moveDotR,
                                fill = app.takeDotColor)
 
+# returns opposite color to piece given
 def getOpposingColor(app, piece):
     if piece.color == "white":
         return "black"
@@ -709,14 +709,15 @@ def getRowCol(app, x, y):
     return (row, col)
 
 # code obtained from 15-112 course notes
+# https://www.cs.cmu.edu/~112/notes/notes-animations-part4.html
 # def getCachedPhotoImage(app, image):
 #     # stores a cached version of the PhotoImage in the PIL/Pillow image
 #     if ('cachedPhotoImage' not in image.__dict__):
 #         image.cachedPhotoImage = ImageTk.PhotoImage(image)
 #     return image.cachedPhotoImage
 
+# chess sprites: https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Chess_Pieces_Sprite.svg/640px-Chess_Pieces_Sprite.svg.png
 # def loadChessPieceImages(app):
-    # chess sprites source: https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Chess_Pieces_Sprite.svg/640px-Chess_Pieces_Sprite.svg.png
 #     chessPieces = app.loadImage('chessSprites.png')
 #     whiteKingImg = chessPieces.crop((0, 0, 200, 200))
 #     blackKingImg = chessPieces.crop((0, 200, 200, 400))
