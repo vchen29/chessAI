@@ -435,7 +435,7 @@ def gameMode_isMated(app, color):
         eval(f"app.{color}Pieces['K'].pop()")
         eval(f"app.{color}Pieces['K'].add(king)")
 
-    print("no king moves...")
+    # print("no king moves...")
     # input()
 
     checkingPieces = gameMode_getCheckingPieces(app, color) # get pieces that are checking the king!
@@ -445,7 +445,7 @@ def gameMode_isMated(app, color):
                 if gameMode_attemptUndoCheck(app, checkingPiece.row, 
                                              checkingPiece.col, piece):
                     return False
-    print("no take moves...", end = "")
+    # print("no take moves...", end = "")
 
     if (len(checkingPieces) == 1) and (isinstance(checkingPieces[0], Knight)):
         print("Mate by Knight!")
@@ -479,14 +479,17 @@ def gameMode_isMated(app, color):
                     tempCol += unitDCol
             # print("made through while loop")
 
-    print("no block moves...", end = "")
-    input()
+    # print("no block moves...", end = "")
+    # input()
     # print("mate!")   
     return True
 
 # returns True if move successfully undoes check
 # returns False if it doesn't
 def gameMode_attemptUndoCheck(app, tempRow, tempCol, piece):
+    tempBoardSq = app.gameBoard[tempRow][tempCol]
+    if isinstance(tempBoardSq, ChessPiece) and tempBoardSq.color == piece.color:
+        return False
     # print(type(piece), str(piece))
     oppColor = getOpposingColor(app, piece)
     color = piece.color
@@ -495,15 +498,18 @@ def gameMode_attemptUndoCheck(app, tempRow, tempCol, piece):
     if piece.hasMove(tempRow, tempCol):
         whitePiecesCopy = app.whitePieces.copy()
         blackPiecesCopy = app.blackPieces.copy()
+        hadCheckingPiece = False
+        if isinstance(tempBoardSq, ChessPiece) and tempBoardSq.color != piece.color:
+            checkingPiece = tempBoardSq
+            hadCheckingPiece = True
+            eval(f"app.{oppColor}Pieces[str(checkingPiece)].remove(checkingPiece)")
+            
         app.gameBoard[tempRow][tempCol] = piece
         app.gameBoard[piece.row][piece.col] = 0
-        if isinstance(app.gameBoard[tempRow][tempCol], ChessPiece):
-            checkingPiece = app.gameBoard[tempRow][tempCol]
-            eval(f"app.{oppColor}Pieces.remove(checkingPiece)")
-        eval(f"app.{color}Pieces.remove(piece)")
+        eval(f"app.{color}Pieces[str(piece)].remove(piece)")
 
         pieceCopy.row, pieceCopy.col = tempRow, tempCol
-        eval(f"app.{color}Piece.add(pieceCopy)")
+        eval(f"app.{color}Pieces[str(pieceCopy)].add(pieceCopy)")
 
         result = None
         if gameMode_isChecked(app, color):
@@ -511,10 +517,10 @@ def gameMode_attemptUndoCheck(app, tempRow, tempCol, piece):
         else:
             result = True
 
-        eval(f"app.{color}Piece.remove(pieceCopy)")
-        eval(f"app.{color}Pieces.add(piece)")
-        if isinstance(app.gameBoard[tempRow][tempCol], ChessPiece):
-            eval(f"app.{oppColor}Pieces.add(checkingPiece)")
+        eval(f"app.{color}Pieces[str(pieceCopy)].remove(pieceCopy)")
+        eval(f"app.{color}Pieces[str(piece)].add(piece)")
+        if hadCheckingPiece:
+            eval(f"app.{oppColor}Pieces[str(checkingPiece)].add(checkingPiece)")
         app.whitePieces = whitePiecesCopy
         app.blackPieces = blackPiecesCopy
         return result
@@ -565,7 +571,10 @@ def gameMode_mousePressed(app, event):
             gameMode_makeMove(app, row, col)
             
 
-    # print(app.activePiece)
+    print(app.activePiece)
+    print(str(app.whitePieces))
+    print(str(app.blackPieces))
+    print()
 
 def gameMode_keyPressed(app, event):
     # if (event.key == 'p'):
