@@ -420,31 +420,35 @@ def gameMode_isMated(app, color):
         eval(f"app.{color}Pieces['K'].pop()")
     
     checkingPieces = gameMode_getCheckingPieces(app, color) # get pieces that are checking the king!
-
     for pieceType in eval(f"app.{color}Pieces"):
         for piece in pieceType:
+            oppColor = getOpposingColor(app, piece)
+            pieceCopy = piece.copy()
+
             for checkingPiece in checkingPieces:
-                if gameMode_isValidMove(app, checkingPiece.row, 
-                                        checkingPiece.col):
-                    # make a copy of app.{color}Pieces and app.{oppColor}Pieces
-                    # use gameMode_takePiece on checkingPiece 
-                    # see if there's any difference in sets
-                        # if so, no mate
-                    # else, keep looping
-                    pass
+                if piece.hasMove(checkingPiece.row, checkingPiece.col):
+                    whitePiecesCopy = app.whitePieces.copy()
+                    blackPiecesCopy = app.blackPieces.copy()
+                    app.gameBoard[checkingPiece.row][checkingPiece.col] = piece
+                    app.gameBoard[piece.row][piece.col] = 0
+                    eval(f"app.{oppColor}Pieces.remove(checkingPiece)")
+                    eval(f"app.{color}Pieces.remove(piece)")
+
+                    pieceCopy.row, pieceCopy.col = checkingPiece.row, checkingPiece.col
+                    eval(f"app.{color}Piece.add(pieceCopy)")
+                    if gameMode_isChecked(app, color) == False:
+                        return False
+                    else:
+                        eval(f"app.{color}Piece.remove(pieceCopy)")
+                        eval(f"app.{oppColor}Pieces.add(checkingPiece)")
+                        eval(f"app.{color}Pieces.add(piece)")
     # for piece in app.{color}Pieces    
         # for space that would block king check
             # see if move is possible
             # if so, no check
             # else, keep looping
-    
-    # checked all options and nothing works --> return True
+    return True
 
-
-
-       
-    pass # maybe just make this a regular method since it applies to both 
-         # 2 player and AI version of game (perhaps do same for other methods)
 
 ########################
 # EVENT FUNCTIONS
