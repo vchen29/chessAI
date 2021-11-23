@@ -34,6 +34,10 @@ class ChessPiece(object):
     def hasMove(self, moveRow, moveCol):
         return (moveRow, moveCol) in self.posMoves
 
+    def copy(self):
+        return type(self)(self.row, self.col, self.color)
+        
+
     # def move(self, newRow, newCol):
     #     # check if in valid move
     #     # if valid, make move
@@ -357,17 +361,26 @@ def gameMode_takePiece(app, row, col):
         app.playerToMoveIdx += 1
 
 def gameMode_isChecked(app, color):
+    return gameMode_getCheckedAndPieces(app, color)[1]
+
+def gameMode_getCheckingPieces(app, color):
+    return gameMode_getCheckedAndPieces(app, color)[0]
+
+def gameMode_getCheckedAndPieces(app, color):
     # print("starting check test!")
     king = eval(f"app.{color}Pieces['K'].pop()")
     eval(f"app.{color}Pieces['K'].add(king)")
+    checked = False
+    checkingPieces = set()
 
     for (drow, dcol) in Knight.moves:
         row, col = king.row + drow, king.col + dcol
         if rowColInBounds(app, row, col):
             tempPiece = app.gameBoard[row][col]
             if type(tempPiece) == Knight and tempPiece.color != king.color:
-                app.checked = color
-                return True
+                checked = True
+                checkingPieces.add(tempPiece)
+    
     # print("... no knight checks!")
     for dirRow, dirCol in king.posMoves:
         row, col = king.row + dirRow, king.col + dirCol
@@ -376,33 +389,56 @@ def gameMode_isChecked(app, color):
             if isinstance(boardSq, ChessPiece) and boardSq.color != king.color:
                 # print(row, col, boardSq)
                 if boardSq.hasMove(king.row - row, king.col - col):
-                    app.checked = color
+                    checked = True
                     # print(f"Checked by {str(boardSq)}!")
-                    return True
+                    checkingPieces.add(boardSq)
                 else:
                     break
             elif isinstance(boardSq, ChessPiece) and boardSq.color == king.color:
                 break
             row += dirRow
             col += dirCol
-    return False
+    print(str(checkingPieces))
+    return (checkingPieces, checked)
 
 def gameMode_isMated(app, color):
     # NOTE: only run "isMated" if "isChecked" == True!! (would save efficiency)
-    # for possibleMove from where opposing colored king is, including currPos:
-        # if not checked in a position, return False (not mated)
+    if gameMode_isChecked(app, color) == False:
+        return False
+    
+    king = eval(f"app.{color}Pieces['K'].pop()")
 
-    # check if any pieces can 1) take the piece 2) block the piece
-        # maybe make a helper function for checked
-        #   --> 1) "isChecked()" returns True/False and which piece
-        #   --> 2) "checkPiece()" returns which piece is checking the king (wrapper function)
-        #   --> 3) "boolIsChecked()" returns True/False only
-        # once all pieces that are checking king are obtained:
-        #   loop through all pieces that are same color as king
-        #   --> see if piece can take
-        #   --> see if piece can block
-        #           try to do calcs to smartly block moves instead of trial/error
-    # checked all options: return False
+    for drow, dcol in king.posMoves:
+        newKing = king.copy()
+        newKing.row += drow
+        newKing.col += dcol
+        eval(f"app.{color}Pieces['K'].add(newKing)")
+        if gameMode_isChecked(app, color) == False:
+            eval(f"app.{color}Pieces['K'].pop()")
+            eval(f"app.{color}Pieces['K'].add(king)")
+            return False
+        eval(f"app.{color}Pieces['K'].pop()")
+    
+    checkingPieces = gameMode_getCheckingPieces(app, color) # get pieces that are checking the king!
+
+    for pieceType in eval(f"app.{color}Pieces"):
+        for piece in pieceType:
+            for checkingPiece in checkingPieces:
+                if gameMode_isValidMove(app, checkingPiece.row, 
+                                        checkingPiece.col):
+                    # make a copy of app.{color}Pieces and app.{oppColor}Pieces
+                    # use gameMode_takePiece on checkingPiece 
+                    # see if there's any difference in sets
+                        # if so, no mate
+                    # else, keep looping
+                    pass
+    # for piece in app.{color}Pieces    
+        # for space that would block king check
+            # see if move is possible
+            # if so, no check
+            # else, keep looping
+    
+    # checked all options and nothing works --> return True
 
 
 
