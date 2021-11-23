@@ -243,10 +243,11 @@ def gameMode_isValidMove(app, moveRow, moveCol, piece):
         return False
 
 def gameMode_isValidTake(app, takeRow, takeCol, piece):
-    print("running isValidTake")
+    print(f"running isValidTake on {piece} for {takeRow}, {takeCol}")
 
     if rowColInBounds(app, takeRow, takeCol) == False:
         return False
+    print("****passed rowColInBounds test")
     # check if takeRow, takeCol is a ChessPiece of opposite color to piece
     # print(f"checking if {str(piece)} can take ({takeRow},{takeCol})")
     takeSquare = app.gameBoard[takeRow][takeCol]
@@ -255,6 +256,8 @@ def gameMode_isValidTake(app, takeRow, takeCol, piece):
     elif (isinstance(takeSquare, ChessPiece) and 
           takeSquare.color == piece.color):
         return False
+    print("****passed isinstance tests")
+
     # print("passed instance tests...", end = "")
     currRow, currCol = piece.row, piece.col
     dRow, dCol = (takeRow - currRow), (takeCol - currCol)
@@ -262,6 +265,8 @@ def gameMode_isValidTake(app, takeRow, takeCol, piece):
     if ((dRow, dCol) not in piece.takeMoves 
         or rowColInBounds(app, takeRow, takeCol) == False):
         return False
+    print("****passed takeMoves test")
+
     # print("is inside takeMoves...", end = "")
     hasNoBlockingPieces = gameMode_checkBlockingPieces(app, takeRow, takeCol, piece)
     isChecked = gameMode_attemptMoveTestForCheck(app, takeRow, takeCol, piece)
@@ -521,7 +526,8 @@ def gameMode_attemptMoveTestForCheck(app, tempRow, tempCol, piece):
     blackPiecesCopy = app.blackPieces.copy()
     if isinstance(tempBoardSq, ChessPiece) and tempBoardSq.color != piece.color:
         oppColorPiece = tempBoardSq
-        if piece.hasTake(tempRow, tempCol):
+        if (piece.hasTake(tempRow, tempCol)):
+            print("******** hasTake scenario")
             eval(f"app.{oppColor}Pieces[str(oppColorPiece)].remove(oppColorPiece)")
             app.gameBoard[tempRow][tempCol] = piece
             app.gameBoard[piece.row][piece.col] = 0
@@ -541,10 +547,10 @@ def gameMode_attemptMoveTestForCheck(app, tempRow, tempCol, piece):
             eval(f"app.{oppColor}Pieces[str(oppColorPiece)].add(oppColorPiece)")
             app.whitePieces = whitePiecesCopy
             app.blackPieces = blackPiecesCopy
+            print(f"******** {result}")
             return result
-
     else:
-        if piece.hasMove(tempRow, tempCol): 
+        if (piece.hasMove(tempRow, tempCol)): 
             app.gameBoard[tempRow][tempCol] = piece
             app.gameBoard[piece.row][piece.col] = 0
             eval(f"app.{color}Pieces[str(piece)].remove(piece)")
