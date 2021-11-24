@@ -7,6 +7,7 @@
 
 from cmu_112_graphics import *
 import math
+import copy
 import random
 
 #################################################
@@ -191,6 +192,12 @@ def homeScreenMode_redrawAll(app, canvas):
 def aiMode_timerFired(app):
     # tests to see if it's computer's turn
     if app.playerToMoveIdx % 2 == 1:
+        # CODE BELOW RUNS MINIMAX! (I've commented it out because it's very bugged)
+
+        # bestMoveFound = aiMode_getMinimaxBestMove(app, app.whitePieces.copy(), 
+        #                                         app.blackPieces.copy(),
+        #                                         copy.deepcopy(app.gameBoard))
+        # print(f"Best Move Found: {str(bestMoveFound)}")
         aiMode_makeAIPlayerMove(app)
 
 def aiMode_mousePressed(app, event):
@@ -238,9 +245,432 @@ def aiMode_mousePressed(app, event):
             # print(app.activePiece, isValidMove(app, row, col))
             makeMove(app, row, col)
     # print(app.gameBoard)
-            
-
     # print(app.activePiece)
+
+########################
+# MINIMAX FUNCTIONS
+######################## 
+
+# returns True if proposed move is a valid move (not take move) for piece
+def aiMode_isValidMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc):
+    moveRow, moveCol = moveLoc[0], moveLoc[1]
+
+    if rowColInBounds(app, moveRow, moveCol) == False:
+        return False
+    moveSquare = gameBoard[moveRow][moveCol]
+    if (isinstance(moveSquare, ChessPiece)):
+        return False
+
+    currRow, currCol = piece.row, piece.col
+    dRow, dCol = (moveRow - currRow), (moveCol - currCol)
+
+    if (dRow, dCol) not in piece.posMoves:
+        return False
+
+    hasNoBlockingPieces = aiMode_checkBlockingPieces(app, gameBoard, piece, moveLoc)
+    isChecked = aiMode_attemptUndoCheck(app, whitePieces, blackPieces, gameBoard, piece, moveLoc)
+    if hasNoBlockingPieces and isChecked:
+        return True
+    else:
+        return False
+
+# returns True if proposed move is a valid take move for piece
+def aiMode_isValidTake(app, whitePieces, blackPieces, gameBoard, piece, moveLoc):
+    takeRow, takeCol = moveLoc[0], moveLoc[1]
+
+    if rowColInBounds(app, takeRow, takeCol) == False:
+        return False
+    # check if takeRow, takeCol is a ChessPiece of opposite color to piece
+    # print(f"checking if {str(piece)} can take ({takeRow},{takeCol})")
+    takeSquare = gameBoard[takeRow][takeCol]
+    if (isinstance(takeSquare, ChessPiece) == False):
+        return False
+    elif (isinstance(takeSquare, ChessPiece) and 
+          takeSquare.color == piece.color):
+        return False
+    # print("passed instance tests...", end = "")
+    currRow, currCol = piece.row, piece.col
+    dRow, dCol = (takeRow - currRow), (takeCol - currCol)
+
+    if (dRow, dCol) not in piece.takeMoves:
+        return False
+    
+    hasNoBlockingPieces = aiMode_checkBlockingPieces(app, gameBoard, piece, moveLoc)
+    isChecked = aiMode_attemptUndoCheck(app, whitePieces, blackPieces, gameBoard, piece, moveLoc)
+    if hasNoBlockingPieces and isChecked:
+        return True
+    else:
+        return False
+
+
+def aiMode_makeMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc):
+    oldRow, oldCol = piece.row, piece.col
+    # oldMoved = piece.moved
+    if aiMode_isValidMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc):
+        # print('is valid move!')
+        row, col = moveLoc[0], moveLoc[1]
+        gameBoard[oldRow][oldCol] = 0
+        eval(f"{piece.color}Pieces[str(piece)].remove(piece)")
+
+        piece.row, piece.col = row, col
+        piece.moved = True
+
+        gameBoard[row][col] = piece
+        eval(f"{piece.color}Pieces[str(piece)].add(piece)")
+
+    return (whitePieces, blackPieces, gameBoard)
+
+# do I need makeMove and takePiece as separate..?
+def aiMode_takePiece(app, whitePieces, blackPieces, gameBoard, piece, takeLoc):
+    oldRow, oldCol = piece.row, piece.col
+    # oldMoved = piece.moved
+
+    if isValidTake(app, whitePieces, blackPieces, gameBoard, piece, takeLoc):
+        row, col = takeLoc[0], takeLoc[1]
+        gameBoard[oldRow][oldCol] = 0
+        eval(f"{piece.color}Pieces[str(piece)].remove(piece)")
+
+        piece.row, piece.col = row, col
+        # piece.moved = True
+        
+        takenPiece = gameBoard[row][col]
+        eval(f"{takenPiece.color}Pieces[str(takenPiece)].remove(takenPiece)")
+
+        gameBoard[row][col] = piece
+        eval(f"{piece.color}Pieces[str(piece)].add(piece)")
+
+    return (whitePieces, blackPieces, gameBoard)
+
+def aiMode_getMovesFromState(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
+    if isMaxPlayerTurn: # white's turn
+        print("white's turn...")
+        whiteMoves = set()
+        for pieceType in whitePieces:
+            for piece in whitePieces[pieceType]:
+                for (dRow, dCol) in piece.posMoves.union(piece.takeMoves):
+                    moveRow, moveCol = piece.row + dRow, piece.col + dCol
+                    if (aiMode_isValidMove(app, whitePieces, blackPieces, gameBoard,
+                                          piece, (moveRow, moveCol))
+                        or aiMode_isValidTake(app, whitePieces, blackPieces, gameBoard,
+                                              piece, (moveRow, moveCol))):
+                        whiteMoves.add((piece, (moveRow, moveCol)))
+        return whiteMoves
+    else:
+        print("black's turn...")
+        blackMoves = set()
+        for pieceType in blackPieces:
+            for piece in blackPieces[pieceType]:
+                for (dRow, dCol) in piece.posMoves.union(piece.takeMoves):
+                    moveRow, moveCol = piece.row + dRow, piece.col + dCol
+                    # do i need "whitePieces and blackPieces in the param here?"
+                    # print(f"Piece and Move: {piece} | {piece.row}, {piece.col} | {moveRow}, {moveCol}")
+                    isValidMove = aiMode_isValidMove(app, whitePieces, blackPieces, gameBoard,
+                                          piece, (moveRow, moveCol))
+                    isValidTake = aiMode_isValidTake(app, whitePieces, blackPieces, gameBoard,
+                                              piece, (moveRow, moveCol))
+                    # print(f"testing: {isValidMove}, {isValidTake}")
+                    if (isValidMove or isValidTake):
+                        blackMoves.add((piece, (moveRow, moveCol)))
+        return blackMoves
+
+def aiMode_checkBlockingPieces(app, gameBoard, piece, moveLoc):
+    moveRow, moveCol = moveLoc[0], moveLoc[1]
+    currRow, currCol = piece.row, piece.col 
+    dRow, dCol = (moveRow - currRow), (moveCol - currCol)
+
+    if type(piece) != Knight:
+        dist = math.sqrt(dRow ** 2 + dCol ** 2)
+        unitDRow, unitDCol = math.ceil(dRow / dist), math.ceil(dCol / dist)
+        if dRow / dist < 0:
+            unitDRow = -math.ceil(abs(dRow/dist))
+        if dCol / dist < 0:
+            unitDCol = -math.ceil(abs(dCol/dist))
+        tempRow, tempCol =  currRow + unitDRow, currCol + unitDCol
+
+        while (tempRow != moveRow) or (tempCol != moveCol):
+            tempPiece = gameBoard[tempRow][tempCol]
+            if (isinstance(tempPiece, ChessPiece) and
+                tempPiece.color == piece.color):
+                return False
+            elif (isinstance(tempPiece, ChessPiece) and
+                  tempPiece.color != piece.color and
+                  (tempRow != moveRow or tempCol != moveCol)):
+                return False
+
+            tempRow += unitDRow
+            tempCol += unitDCol
+    return True
+
+def aiMode_attemptUndoCheck(app, whitePieces, blackPieces, gameBoard, piece, moveLoc):
+    tempRow, tempCol = moveLoc[0], moveLoc[1]
+    tempBoardSq = gameBoard[tempRow][tempCol]
+    if isinstance(tempBoardSq, ChessPiece) and tempBoardSq.color == piece.color:
+        return False
+
+    oppColor = getOpposingColor(app, piece)
+    color = piece.color
+    pieceCopy = piece.copy()
+
+    whitePiecesCopy = whitePieces.copy()
+    blackPiecesCopy = blackPieces.copy()
+    dRow, dCol = tempRow - piece.row, tempCol - piece.col
+
+    if isinstance(tempBoardSq, ChessPiece) and tempBoardSq.color != piece.color:
+        oppColorPiece = tempBoardSq
+        if piece.hasTake(dRow, dCol):
+            eval(f"{oppColor}Pieces[str(oppColorPiece)].remove(oppColorPiece)")
+            gameBoard[tempRow][tempCol] = piece
+            gameBoard[piece.row][piece.col] = 0
+            eval(f"{color}Pieces[str(piece)].remove(piece)")
+
+            pieceCopy.row, pieceCopy.col = tempRow, tempCol
+            eval(f"{color}Pieces[str(pieceCopy)].add(pieceCopy)")
+
+            result = None
+            if isChecked(app, color):
+                # print("move results in check!")
+                result = False
+            else:
+                # print("move isn't check!")
+                result = True
+            
+            gameBoard[tempRow][tempCol] = oppColorPiece
+            gameBoard[piece.row][piece.col] = piece
+            eval(f"{color}Pieces[str(pieceCopy)].remove(pieceCopy)")
+            eval(f"{color}Pieces[str(piece)].add(piece)")
+            eval(f"{oppColor}Pieces[str(oppColorPiece)].add(oppColorPiece)")
+            whitePieces = whitePiecesCopy
+            blackPieces = blackPiecesCopy
+            return result
+    else:
+        if piece.hasMove(dRow, dCol): 
+            gameBoard[tempRow][tempCol] = piece
+            gameBoard[piece.row][piece.col] = 0
+            eval(f"{color}Pieces[str(piece)].remove(piece)")
+
+            pieceCopy.row, pieceCopy.col = tempRow, tempCol
+            eval(f"{color}Pieces[str(pieceCopy)].add(pieceCopy)")
+            result = None
+            if isChecked(app, color):
+                result = False
+            else:
+                result = True
+
+            gameBoard[tempRow][tempCol] = 0
+            gameBoard[piece.row][piece.col] = piece
+
+            eval(f"{color}Pieces[str(pieceCopy)].remove(pieceCopy)")
+            eval(f"{color}Pieces[str(piece)].add(piece)")
+            whitePieces = whitePiecesCopy
+            blackPieces = blackPiecesCopy
+            return result
+    return False
+
+def aiMode_isChecked(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
+    return aiMode_getCheckedAndPieces(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)[1]
+
+def aiMode_getCheckingPieces(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
+    return aiMode_getCheckedAndPieces(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)[0]
+
+def aiMode_getCheckedAndPieces(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
+    color = aiMode_getPlayerColor(isMaxPlayerTurn)
+
+    king = eval(f"{color}Pieces['K'].pop()")
+    eval(f"{color}Pieces['K'].add(king)")
+    checked = False
+    checkingPieces = []
+
+    for (drow, dcol) in Knight.moves:
+        row, col = king.row + drow, king.col + dcol
+        if rowColInBounds(app, row, col):
+            tempPiece = gameBoard[row][col]
+            if type(tempPiece) == Knight and tempPiece.color != king.color:
+                checked = True
+                checkingPieces.append(tempPiece)
+    
+    # print("... no knight checks!")
+    for dirRow, dirCol in king.posMoves:
+        row, col = king.row + dirRow, king.col + dirCol
+        while rowColInBounds(app, row, col):
+            boardSq = gameBoard[row][col]
+            if isinstance(boardSq, ChessPiece) and boardSq.color != king.color:
+                # print(row, col, boardSq)
+                if boardSq.hasTake(king.row - row, king.col - col):
+                    checked = True
+                    # print(f"Checked by {str(boardSq)}!")
+                    checkingPieces.append(boardSq)
+                else:
+                    break
+            elif isinstance(boardSq, ChessPiece) and boardSq.color == king.color:
+                break
+            row += dirRow
+            col += dirCol
+    # print(str(checkingPieces))
+    return (checkingPieces, checked)
+
+def aiMode_isMated(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
+    color = aiMode_getPlayerColor(isMaxPlayerTurn)
+
+    king = eval(f"{color}Pieces['K'].pop()")
+    eval(f"{color}Pieces['K'].add(king)")
+    kingRow, kingCol = king.row, king.col
+
+    for drow, dcol in king.posMoves:
+        newKing = king.copy()
+        newKing.row += drow
+        newKing.col += dcol
+
+        if (aiMode_isValidMove(app, whitePieces, blackPieces, gameBoard, 
+            king, (newKing.row, newKing.col)) == False):
+            continue
+        
+        eval(f"{color}Pieces['K'].pop()")
+        eval(f"{color}Pieces['K'].add(newKing)")
+        if aiMode_isChecked(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn) == False:
+            eval(f"{color}Pieces['K'].pop()")
+            eval(f"{color}Pieces['K'].add(king)")
+            # print(f"king has move {newKing.row}, {newKing.col}")
+            return False
+        eval(f"{color}Pieces['K'].pop()")
+        eval(f"{color}Pieces['K'].add(king)")
+
+    print("no king moves...")
+    # input()
+
+    checkingPieces = aiMode_getCheckingPieces(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
+    for pieceType in eval(f"app.{color}Pieces"):
+        for piece in eval(f"app.{color}Pieces[pieceType]"):
+            for checkingPiece in checkingPieces:
+                if isValidTake(app, whitePieces, blackPieces, gameBoard, 
+                                piece, (checkingPiece.row, checkingPiece.col)):
+                    return False
+    # print("no take moves...", end = "")
+
+    if (len(checkingPieces) == 1) and (isinstance(checkingPieces[0], Knight)):
+        # print("Mate by Knight!")
+        return True
+
+    for pieceType in eval(f"{color}Pieces"):
+        for piece in eval(f"{color}Pieces[pieceType]"):
+            # print(f"testing {piece}")
+            # input()
+            pieceRow, pieceCol = piece.row, piece.col
+            for checkingPiece in checkingPieces:
+                dRow, dCol = (checkingPiece.row - kingRow), (checkingPiece.col - kingCol)
+                dist = math.sqrt(dRow ** 2 + dCol ** 2)
+                # print(f"dRow, dCol: {dRow}, {dCol}, dist: {dist}")
+                unitDRow, unitDCol = math.ceil(dRow / dist), math.ceil(dCol / dist)
+                if dRow / dist < 0:
+                    unitDRow = -math.ceil(abs(dRow/dist))
+                if dCol / dist < 0:
+                    unitDCol = -math.ceil(abs(dCol/dist))
+                tempRow, tempCol = kingRow, kingCol
+                while tempRow != checkingPiece.row or tempCol != checkingPiece.col:
+                    # print(f"tempRow, tempCol: {tempRow}, {tempCol}")
+                    # print(f"pieceRow, pieceCol: {pieceRow}, {pieceCol}")
+                    # input()
+                    if (piece.hasMove(tempRow, tempCol)
+                        and aiMode_attemptUndoCheck(app, whitePieces, blackPieces,
+                                                    gameBoard, piece, 
+                                                    (tempRow, tempCol))):
+                        # print("returning false!")
+                        return False
+                    tempRow += unitDRow
+                    tempCol += unitDCol
+            # print("made through while loop")
+
+    print("no block moves...", end = "")
+    # input()
+    # print("mate!")   
+    return True
+
+def aiMode_getMinimaxBestMove(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn = False):
+    bestPiece = None
+    bestMove = None
+    minVal = None
+    posMoves = aiMode_getMovesFromState(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
+    print(f"PosMoves: {posMoves}")
+    for (piece, (moveRow, moveCol)) in posMoves:
+        depth = 2
+        moveVal = aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, not isMaxPlayerTurn)
+        if bestMove == None or moveVal < minVal:
+            minVal = moveVal
+            bestPiece = piece
+            bestMove = (moveRow, moveCol)
+    return bestPiece, bestMove
+
+# returns current player's color depending on isMaxPlayerTurn value
+def aiMode_getPlayerColor(isMaxPlayerTurn):
+    if isMaxPlayerTurn:
+        return "white"
+    else:
+        return "black"
+
+# general pseudocode structure: https://www.javatpoint.com/mini-max-algorithm-in-ai
+# state stores the temporary set of pieces for both colors (and gameboard??)
+# say isMaximizingPlayer is white (player)
+def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerTurn):
+    isMated = aiMode_isMated(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
+    isChecked = aiMode_isChecked(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
+
+    if depth == 0 or isMated:
+        posVal = 0
+        playerColor = aiMode_getPlayerColor(isMaxPlayerTurn)
+
+        # add "value bonuses" if the move results in a check/mate
+        if isMated and playerColor == 'black':
+            posVal -= 50
+        elif isChecked and playerColor == 'black':
+            posVal -= 15
+        elif isMated and playerColor == "white":
+            posVal += 50
+        elif isChecked and playerColor == "white":
+            posVal += 15
+        
+        for pieceType in blackPieces:
+            for piece in blackPieces[pieceType]:
+                posVal -= piece.value
+
+        for pieceType in whitePieces:
+            for piece in whitePieces[pieceType]:
+                posVal += piece.value
+        
+        return posVal
+
+        # if is check or mate, return higher/lower values
+        # return value of state (sum of black and white piece values)
+
+    posMovesFromState = aiMode_getMovesFromState(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
+    if isMaxPlayerTurn: 
+        maxEval = -100000  
+        for move in posMovesFromState:
+            piece, moveLoc = move[0], move[1]
+            isValidMove = aiMode_isValidMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc)
+            isValidTake = aiMode_isValidTake(app, whitePieces, blackPieces, gameBoard, piece, moveLoc)
+
+            if isValidMove or isValidTake:
+                newState = aiMode_makeMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc)
+                newWhitePieces, newBlackPieces, newGameBoard = newState[0], newState[1], newState[2]
+                eval = aiMode_minimax(app, newWhitePieces, newBlackPieces, newGameBoard, 
+                                      depth - 1, not isMaxPlayerTurn)  
+                maxEval = max(maxEval, eval)       
+        return maxEval
+        
+    else:    
+        minEval = 100000   
+        for move in posMovesFromState:
+            piece, moveLoc = move[0], move[1]
+            isValidMove = aiMode_isValidMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc)
+            isValidTake = aiMode_isValidTake(app, whitePieces, blackPieces, gameBoard, piece, moveLoc)
+
+            if isValidMove or isValidTake:
+                newState = aiMode_makeMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc)
+                newWhitePieces, newBlackPieces, newGameBoard = newState[0], newState[1], newState[2]
+                eval = aiMode_minimax(app, newWhitePieces, newBlackPieces, newGameBoard, 
+                                      depth - 1, not isMaxPlayerTurn)  
+                minEval = min(minEval, eval)    
+        return minEval 
+
 
 ########################
 # DRAW FUNCTIONS
