@@ -52,7 +52,7 @@ class Pawn(ChessPiece):
         self.value = 1
 
     def __repr__(self):
-        return "P"
+        return f"P"
 
 class Rook(ChessPiece):
     def __init__(self, row, col, color):
@@ -66,7 +66,7 @@ class Rook(ChessPiece):
         self.value = 5
     
     def __repr__(self):
-        return "R"
+        return f"R"
 
 class Bishop(ChessPiece):
     def __init__(self, row, col, color):
@@ -82,7 +82,7 @@ class Bishop(ChessPiece):
         self.value = 3
 
     def __repr__(self):
-        return "B"
+        return f"B"
 
 class Knight(ChessPiece):
     moves = set()
@@ -105,7 +105,7 @@ class Knight(ChessPiece):
         self.value = 3
 
     def __repr__(self):
-        return "N"
+        return f"N"
 
 class King(ChessPiece):
     def __init__(self, row, col, color):
@@ -120,7 +120,7 @@ class King(ChessPiece):
         self.value = 50
 
     def __repr__(self):
-        return "K"
+        return f"K"
 
 class Queen(ChessPiece):
     def __init__(self, row, col, color):
@@ -139,7 +139,7 @@ class Queen(ChessPiece):
         self.value = 10
 
     def __repr__(self):
-        return "Q"
+        return f"Q"
 
 #################################################
 # HOME SCREEN
@@ -189,16 +189,39 @@ def homeScreenMode_redrawAll(app, canvas):
 #################################################
 # AI MODE
 #################################################
+def copyGameBoard(app, board):
+    gameBoardCopy = []
+    for rowIdx in range(len(board)):
+        rowCopy = []
+        for colIdx in range(len(board)):
+            piece = board[rowIdx][colIdx]
+            if isinstance(piece, ChessPiece):
+                rowCopy.append(piece.copy())
+            else:
+                rowCopy.append(0)
+        gameBoardCopy.append(rowCopy)
+
+    return gameBoardCopy
+
 def aiMode_timerFired(app):
     # tests to see if it's computer's turn
     if app.playerToMoveIdx % 2 == 1:
         # CODE BELOW RUNS MINIMAX! (I've commented it out because it's very bugged)
+        gameBoardCopy = copyGameBoard(app, app.gameBoard)
 
-        # bestMoveFound = aiMode_getMinimaxBestMove(app, app.whitePieces.copy(), 
-        #                                         app.blackPieces.copy(),
-        #                                         copy.deepcopy(app.gameBoard))
-        # print(f"Best Move Found: {str(bestMoveFound)}")
-        aiMode_makeAIPlayerMove(app)
+        bestPiece, bestMove = aiMode_getMinimaxBestMove(app, app.whitePieces.copy(), 
+                                                app.blackPieces.copy(),
+                                                gameBoardCopy)
+
+        print(f"Best Move Found: {str(bestPiece)}, {bestMove}")
+        app.activePiece = bestPiece
+        row, col = bestMove[0], bestMove[1]
+        if isValidMove(app, row, col, bestPiece):
+            makeMove(app, row, col)
+        else: # isValidTake
+            takePiece(app, row, col)
+
+        # aiMode_makeAIPlayerMove(app)
 
 def aiMode_mousePressed(app, event):
     if app.gameOver == True:
@@ -253,57 +276,71 @@ def aiMode_mousePressed(app, event):
 
 # returns True if proposed move is a valid move (not take move) for piece
 def aiMode_isValidMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc):
+    # print('running isValidMove...')
     moveRow, moveCol = moveLoc[0], moveLoc[1]
 
     if rowColInBounds(app, moveRow, moveCol) == False:
+        # print("finishing isValidMove.")
         return False
     moveSquare = gameBoard[moveRow][moveCol]
     if (isinstance(moveSquare, ChessPiece)):
+        # print("finishing isValidMove.")
         return False
 
     currRow, currCol = piece.row, piece.col
     dRow, dCol = (moveRow - currRow), (moveCol - currCol)
 
     if (dRow, dCol) not in piece.posMoves:
+        # print("finishing isValidMove.")
         return False
 
     hasNoBlockingPieces = aiMode_checkBlockingPieces(app, gameBoard, piece, moveLoc)
-    isChecked = aiMode_attemptUndoCheck(app, whitePieces, blackPieces, gameBoard, piece, moveLoc)
-    if hasNoBlockingPieces and isChecked:
-        return True
+    if hasNoBlockingPieces:
+        isChecked = aiMode_attemptUndoCheck(app, whitePieces, blackPieces, gameBoard, piece, moveLoc)
+        # print("finishing isValidMove.")
+        return hasNoBlockingPieces and isChecked
     else:
+        # print("finishing isValidMove.")
         return False
-
 # returns True if proposed move is a valid take move for piece
 def aiMode_isValidTake(app, whitePieces, blackPieces, gameBoard, piece, moveLoc):
+    # print('running isValidTake...', end = "")
     takeRow, takeCol = moveLoc[0], moveLoc[1]
 
     if rowColInBounds(app, takeRow, takeCol) == False:
+        # print("finishing isValidTake.")
         return False
     # check if takeRow, takeCol is a ChessPiece of opposite color to piece
     # print(f"checking if {str(piece)} can take ({takeRow},{takeCol})")
     takeSquare = gameBoard[takeRow][takeCol]
     if (isinstance(takeSquare, ChessPiece) == False):
+        # print("finishing isValidTake.")
         return False
     elif (isinstance(takeSquare, ChessPiece) and 
           takeSquare.color == piece.color):
+        # print("finishing isValidTake.")
         return False
     # print("passed instance tests...", end = "")
     currRow, currCol = piece.row, piece.col
     dRow, dCol = (takeRow - currRow), (takeCol - currCol)
 
     if (dRow, dCol) not in piece.takeMoves:
+        # print("finishing isValidTake.")
         return False
     
     hasNoBlockingPieces = aiMode_checkBlockingPieces(app, gameBoard, piece, moveLoc)
-    isChecked = aiMode_attemptUndoCheck(app, whitePieces, blackPieces, gameBoard, piece, moveLoc)
-    if hasNoBlockingPieces and isChecked:
-        return True
+    if hasNoBlockingPieces:
+        isChecked = aiMode_attemptUndoCheck(app, whitePieces, blackPieces, gameBoard, piece, moveLoc)
+        
+        # print("finishing isValidTake.")
+        return hasNoBlockingPieces and isChecked
     else:
+        # print("finishing isValidTake.")
         return False
 
 
 def aiMode_makeMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc):
+    # print("running makeMove...")
     oldRow, oldCol = piece.row, piece.col
     # oldMoved = piece.moved
     if aiMode_isValidMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc):
@@ -317,15 +354,16 @@ def aiMode_makeMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc):
 
         gameBoard[row][col] = piece
         eval(f"{piece.color}Pieces[str(piece)].add(piece)")
-
+    # print("finished makeMove.")
     return (whitePieces, blackPieces, gameBoard)
 
 # do I need makeMove and takePiece as separate..?
 def aiMode_takePiece(app, whitePieces, blackPieces, gameBoard, piece, takeLoc):
+    # print("running takePiece...")
     oldRow, oldCol = piece.row, piece.col
     # oldMoved = piece.moved
 
-    if isValidTake(app, whitePieces, blackPieces, gameBoard, piece, takeLoc):
+    if aiMode_isValidTake(app, whitePieces, blackPieces, gameBoard, piece, takeLoc):
         row, col = takeLoc[0], takeLoc[1]
         gameBoard[oldRow][oldCol] = 0
         eval(f"{piece.color}Pieces[str(piece)].remove(piece)")
@@ -338,12 +376,13 @@ def aiMode_takePiece(app, whitePieces, blackPieces, gameBoard, piece, takeLoc):
 
         gameBoard[row][col] = piece
         eval(f"{piece.color}Pieces[str(piece)].add(piece)")
-
+    # print("finished takePiece.")
     return (whitePieces, blackPieces, gameBoard)
 
 def aiMode_getMovesFromState(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
+    # print("running getMovesFromState...", end = '')
     if isMaxPlayerTurn: # white's turn
-        print("white's turn...")
+        # print("white's turn...")
         whiteMoves = set()
         for pieceType in whitePieces:
             for piece in whitePieces[pieceType]:
@@ -354,16 +393,16 @@ def aiMode_getMovesFromState(app, whitePieces, blackPieces, gameBoard, isMaxPlay
                         or aiMode_isValidTake(app, whitePieces, blackPieces, gameBoard,
                                               piece, (moveRow, moveCol))):
                         whiteMoves.add((piece, (moveRow, moveCol)))
+        # print("finished.")
         return whiteMoves
     else:
-        print("black's turn...")
+        # print("black's turn...")
         blackMoves = set()
         for pieceType in blackPieces:
             for piece in blackPieces[pieceType]:
                 for (dRow, dCol) in piece.posMoves.union(piece.takeMoves):
                     moveRow, moveCol = piece.row + dRow, piece.col + dCol
-                    # do i need "whitePieces and blackPieces in the param here?"
-                    # print(f"Piece and Move: {piece} | {piece.row}, {piece.col} | {moveRow}, {moveCol}")
+                    # print(f"***Piece and Move: {piece} | {piece.row}, {piece.col} | {moveRow}, {moveCol}")
                     isValidMove = aiMode_isValidMove(app, whitePieces, blackPieces, gameBoard,
                                           piece, (moveRow, moveCol))
                     isValidTake = aiMode_isValidTake(app, whitePieces, blackPieces, gameBoard,
@@ -371,9 +410,11 @@ def aiMode_getMovesFromState(app, whitePieces, blackPieces, gameBoard, isMaxPlay
                     # print(f"testing: {isValidMove}, {isValidTake}")
                     if (isValidMove or isValidTake):
                         blackMoves.add((piece, (moveRow, moveCol)))
+        # print("finished.")
         return blackMoves
 
 def aiMode_checkBlockingPieces(app, gameBoard, piece, moveLoc):
+    # print("running checkBlockingPieces...", end = '')
     moveRow, moveCol = moveLoc[0], moveLoc[1]
     currRow, currCol = piece.row, piece.col 
     dRow, dCol = (moveRow - currRow), (moveCol - currCol)
@@ -391,17 +432,24 @@ def aiMode_checkBlockingPieces(app, gameBoard, piece, moveLoc):
             tempPiece = gameBoard[tempRow][tempCol]
             if (isinstance(tempPiece, ChessPiece) and
                 tempPiece.color == piece.color):
+                # print("finished.")
                 return False
             elif (isinstance(tempPiece, ChessPiece) and
                   tempPiece.color != piece.color and
                   (tempRow != moveRow or tempCol != moveCol)):
+                # print("finished.")
                 return False
 
             tempRow += unitDRow
             tempCol += unitDCol
+    # print("finished.")
     return True
 
 def aiMode_attemptUndoCheck(app, whitePieces, blackPieces, gameBoard, piece, moveLoc):
+    # print(f"AttemptUndoCheck for {piece}: {moveLoc}")
+    # print(f"    White Pieces: {whitePieces}")
+    # print(f"    Black Pieces: {whitePieces}")
+    # print(f"    GameBoard: {gameBoard}")
     tempRow, tempCol = moveLoc[0], moveLoc[1]
     tempBoardSq = gameBoard[tempRow][tempCol]
     if isinstance(tempBoardSq, ChessPiece) and tempBoardSq.color == piece.color:
@@ -427,7 +475,7 @@ def aiMode_attemptUndoCheck(app, whitePieces, blackPieces, gameBoard, piece, mov
             eval(f"{color}Pieces[str(pieceCopy)].add(pieceCopy)")
 
             result = None
-            if isChecked(app, color):
+            if aiMode_isChecked(app, whitePieces, blackPieces, gameBoard, piece.color == "white"):
                 # print("move results in check!")
                 result = False
             else:
@@ -451,7 +499,7 @@ def aiMode_attemptUndoCheck(app, whitePieces, blackPieces, gameBoard, piece, mov
             pieceCopy.row, pieceCopy.col = tempRow, tempCol
             eval(f"{color}Pieces[str(pieceCopy)].add(pieceCopy)")
             result = None
-            if isChecked(app, color):
+            if aiMode_isChecked(app, whitePieces, blackPieces, gameBoard, piece.color == "white"):
                 result = False
             else:
                 result = True
@@ -467,14 +515,17 @@ def aiMode_attemptUndoCheck(app, whitePieces, blackPieces, gameBoard, piece, mov
     return False
 
 def aiMode_isChecked(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
+    # print("running isChecked...")
     return aiMode_getCheckedAndPieces(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)[1]
 
 def aiMode_getCheckingPieces(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
+    # print("running getCheckingPieces...")
     return aiMode_getCheckedAndPieces(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)[0]
 
 def aiMode_getCheckedAndPieces(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
+    # print("running getCheckedAndPieces...")
     color = aiMode_getPlayerColor(isMaxPlayerTurn)
-
+    # print(eval(f"   {color}Pieces"))
     king = eval(f"{color}Pieces['K'].pop()")
     eval(f"{color}Pieces['K'].add(king)")
     checked = False
@@ -488,7 +539,8 @@ def aiMode_getCheckedAndPieces(app, whitePieces, blackPieces, gameBoard, isMaxPl
                 checked = True
                 checkingPieces.append(tempPiece)
     
-    # print("... no knight checks!")
+    # print("     ... no knight checks!")
+
     for dirRow, dirCol in king.posMoves:
         row, col = king.row + dirRow, king.col + dirCol
         while rowColInBounds(app, row, col):
@@ -505,10 +557,13 @@ def aiMode_getCheckedAndPieces(app, whitePieces, blackPieces, gameBoard, isMaxPl
                 break
             row += dirRow
             col += dirCol
-    # print(str(checkingPieces))
+
+    # print(f"    checking pieces: {str(checkingPieces)}, checked: {checked}")
+    # print()
     return (checkingPieces, checked)
 
 def aiMode_isMated(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
+    # print("running isMated...", end = '')
     color = aiMode_getPlayerColor(isMaxPlayerTurn)
 
     king = eval(f"{color}Pieces['K'].pop()")
@@ -534,22 +589,23 @@ def aiMode_isMated(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
         eval(f"{color}Pieces['K'].pop()")
         eval(f"{color}Pieces['K'].add(king)")
 
-    print("no king moves...")
-    # input()
+    print("no king moves...", end = '')
+    input()
 
     checkingPieces = aiMode_getCheckingPieces(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
     for pieceType in eval(f"app.{color}Pieces"):
         for piece in eval(f"app.{color}Pieces[pieceType]"):
             for checkingPiece in checkingPieces:
-                if isValidTake(app, whitePieces, blackPieces, gameBoard, 
+                if aiMode_isValidTake(app, whitePieces, blackPieces, gameBoard, 
                                 piece, (checkingPiece.row, checkingPiece.col)):
                     return False
-    # print("no take moves...", end = "")
-
+    print("no take moves...", end = "")
+    input()
     if (len(checkingPieces) == 1) and (isinstance(checkingPieces[0], Knight)):
         # print("Mate by Knight!")
         return True
-
+    print("not mated by knight...", end = '')
+    input()
     for pieceType in eval(f"{color}Pieces"):
         for piece in eval(f"{color}Pieces[pieceType]"):
             # print(f"testing {piece}")
@@ -580,19 +636,33 @@ def aiMode_isMated(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
             # print("made through while loop")
 
     print("no block moves...", end = "")
-    # input()
-    # print("mate!")   
+    input()
+    print("mate!")   
     return True
 
 def aiMode_getMinimaxBestMove(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn = False):
+    # print("running getMinimaxBestMove.")
     bestPiece = None
     bestMove = None
     minVal = None
+    # print("getting posMoves...", end = "")
     posMoves = aiMode_getMovesFromState(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
-    print(f"PosMoves: {posMoves}")
+    # print(f"PosMoves: {posMoves}")
     for (piece, (moveRow, moveCol)) in posMoves:
         depth = 2
-        moveVal = aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, not isMaxPlayerTurn)
+        whiteCopy = dict()
+        for key in whitePieces:
+            for piece in whitePieces[key]:
+                whiteCopy[key] = whiteCopy.get(key, set())
+                whiteCopy[key].add(piece.copy())
+        blackCopy = dict()
+        for key in blackPieces:
+            for piece in blackPieces[key]:
+                blackCopy[key] = blackCopy.get(key, set())
+                blackCopy[key].add(piece.copy())
+        gameBoardCopy = copyGameBoard(app, gameBoard)
+
+        moveVal = aiMode_minimax(app, whiteCopy, blackCopy, gameBoardCopy, depth, isMaxPlayerTurn)
         if bestMove == None or moveVal < minVal:
             minVal = moveVal
             bestPiece = piece
@@ -610,10 +680,18 @@ def aiMode_getPlayerColor(isMaxPlayerTurn):
 # state stores the temporary set of pieces for both colors (and gameboard??)
 # say isMaximizingPlayer is white (player)
 def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerTurn):
-    isMated = aiMode_isMated(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
+    print(f"------DEPTH: {depth}, Turn: {isMaxPlayerTurn}------")
+    # print(f"    {whitePieces}")
+    # print(f"    {blackPieces}")
+    # print(f"    {gameBoard}")
     isChecked = aiMode_isChecked(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
+    isMated = False
+    if isChecked:
+        isMated = aiMode_isMated(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
 
+    print(gameBoard)
     if depth == 0 or isMated:
+        print(f"returning! {depth} {isMated}")
         posVal = 0
         playerColor = aiMode_getPlayerColor(isMaxPlayerTurn)
 
@@ -639,36 +717,154 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
 
         # if is check or mate, return higher/lower values
         # return value of state (sum of black and white piece values)
-
+    print("checking moves")
     posMovesFromState = aiMode_getMovesFromState(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
     if isMaxPlayerTurn: 
+        print("maxEval!")
         maxEval = -100000  
-        for move in posMovesFromState:
-            piece, moveLoc = move[0], move[1]
-            isValidMove = aiMode_isValidMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc)
-            isValidTake = aiMode_isValidTake(app, whitePieces, blackPieces, gameBoard, piece, moveLoc)
+        for (piece, moveLoc) in posMovesFromState:
+            whiteCopy = dict()
+            blackCopy = dict()
+            pieceCopy = None
+            if piece.color == "white":
+                # print(f"piece in whitePieces: {piece in whitePieces[str(piece)]}")
+                # print(f"    {str(piece)}: {piece.row}, {piece.col}")
+                # print(f"        {whitePieces}")
+                # print(f"        {blackPieces}")
+                # print(f"        {gameBoard}")
+                # for item in whitePieces[str(piece)]:
+                    # print(f"    {str(item)}: {item.row}, {item.col}", end = '')
+                # print()
+                try:
+                    whitePieces[str(piece)].remove(piece)
+                    pieceCopy = piece.copy()
+                    whiteCopy[str(piece)] = {pieceCopy}
+                except:
+                    # print(str(piece), whitePieces)
+                    input()
+
+            else:
+                # print(f"piece in blackPieces: {piece in blackPieces[str(piece)]}")
+                # print(f"    {str(piece)}: {piece.row}, {piece.col}")
+                # for item in blackPieces[str(piece)]:
+                #     print(f"    {str(item)}: {item.row}, {item.col}", end = '')
+                # print()
+                try:
+                    blackPieces.remove(piece)
+                    pieceCopy = piece.copy()
+                    blackCopy[str(piece)] = {pieceCopy}
+                except:
+                    # print(str(piece), blackPieces)
+                    input()
+
+            for key in whitePieces:
+                for piece in whitePieces[key]:
+                    whiteCopy[key] = whiteCopy.get(key, set())
+                    whiteCopy[key].add(piece.copy())
+            
+            for key in blackPieces:
+                for piece in blackPieces[key]:
+                    blackCopy[key] = blackCopy.get(key, set())
+                    blackCopy[key].add(piece.copy())
+            
+            if piece.color == "white":
+                whitePieces[str(piece)].add(piece)
+            else:
+                blackPieces[str(piece)].add(piece)
+
+            # watch aliasing between sets and list for pieces/gameboard respectively
+        
+            gameBoardCopy = copyGameBoard(app, gameBoard)
+
+            isValidMove = aiMode_isValidMove(app, whiteCopy, blackCopy, 
+                                             gameBoardCopy, pieceCopy, moveLoc)
+            isValidTake = aiMode_isValidTake(app, whiteCopy, blackCopy, 
+                                             gameBoardCopy, pieceCopy, moveLoc)
 
             if isValidMove or isValidTake:
-                newState = aiMode_makeMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc)
+                newState = aiMode_makeMove(app, whiteCopy, blackCopy, 
+                                           gameBoardCopy, pieceCopy, moveLoc)
+
                 newWhitePieces, newBlackPieces, newGameBoard = newState[0], newState[1], newState[2]
                 eval = aiMode_minimax(app, newWhitePieces, newBlackPieces, newGameBoard, 
                                       depth - 1, not isMaxPlayerTurn)  
-                maxEval = max(maxEval, eval)       
+                maxEval = max(maxEval, eval)   
+            else:
+                pass
+                # print('     not a valid move/take!')  
         return maxEval
         
     else:    
+        print('minEval!')
         minEval = 100000   
-        for move in posMovesFromState:
-            piece, moveLoc = move[0], move[1]
-            isValidMove = aiMode_isValidMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc)
-            isValidTake = aiMode_isValidTake(app, whitePieces, blackPieces, gameBoard, piece, moveLoc)
+        for (piece, moveLoc) in posMovesFromState:
+            whiteCopy = dict()
+            blackCopy = dict()
+            pieceCopy = None
+            if piece.color == "white":
+                # print(f"piece in whitePieces: {piece in whitePieces[str(piece)]}")
+                # print(f"    {str(piece)}: {piece.row}, {piece.col}")
+                # print(f"        {whitePieces}")
+                # print(f"        {blackPieces}")
+                # print(f"        {gameBoard}")
+                # for item in whitePieces[str(piece)]:
+                #     print(f"    {str(item)}: {item.row}, {item.col}", end = '')
+                # print()
+                try:
+                    whitePieces[str(piece)].remove(piece)
+                    pieceCopy = piece.copy()
+                    whiteCopy[str(piece)] = {pieceCopy}
+                except:
+                    # print(str(piece), whitePieces)
+                    input()
+
+            else:
+                # print(f"piece in blackPieces: {piece in blackPieces[str(piece)]}")
+                # print(f"    {str(piece)}: {piece.row}, {piece.col}")
+                # for item in blackPieces[str(piece)]:
+                    # print(f"    {str(item)}: {item.row}, {item.col}", end = '')
+                # print()
+                try:
+                    blackPieces.remove(piece)
+                    pieceCopy = piece.copy()
+                    blackCopy[str(piece)] = {pieceCopy}
+                except:
+                    # print(str(piece), blackPieces)
+                    input()
+
+            for key in whitePieces:
+                for piece in whitePieces[key]:
+                    whiteCopy[key] = whiteCopy.get(key, set())
+                    whiteCopy[key].add(piece.copy())
+            
+            for key in blackPieces:
+                for piece in blackPieces[key]:
+                    blackCopy[key] = blackCopy.get(key, set())
+                    blackCopy[key].add(piece.copy())
+            
+            if piece.color == "white":
+                whitePieces[str(piece)].add(piece)
+            else:
+                blackPieces[str(piece)].add(piece)
+
+            # watch aliasing between sets and list for pieces/gameboard respectively
+        
+            gameBoardCopy = copyGameBoard(app, gameBoard)
+
+            isValidMove = aiMode_isValidMove(app, whiteCopy, blackCopy, 
+                                             gameBoardCopy, pieceCopy, moveLoc)
+            isValidTake = aiMode_isValidTake(app, whiteCopy, blackCopy, 
+                                             gameBoardCopy, pieceCopy, moveLoc)
 
             if isValidMove or isValidTake:
-                newState = aiMode_makeMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc)
+                newState = aiMode_makeMove(app, whitePieces, blackCopy, 
+                                           gameBoardCopy, pieceCopy, moveLoc)
+
                 newWhitePieces, newBlackPieces, newGameBoard = newState[0], newState[1], newState[2]
                 eval = aiMode_minimax(app, newWhitePieces, newBlackPieces, newGameBoard, 
                                       depth - 1, not isMaxPlayerTurn)  
                 minEval = min(minEval, eval)    
+
         return minEval 
 
 
@@ -782,7 +978,7 @@ def isValidMove(app, moveRow, moveCol, piece):
     # print("... passed all tests so far")
     hasNoBlockingPieces = checkBlockingPieces(app, moveRow, moveCol, piece)
     isChecked = attemptUndoCheck(app, moveRow, moveCol, piece)
-    print(hasNoBlockingPieces, isChecked)
+    # print(hasNoBlockingPieces, isChecked)
     if hasNoBlockingPieces and isChecked:
         # create separate takePiece condition after isValidTake is written
         return True
@@ -984,12 +1180,12 @@ def isMated(app, color):
         if isChecked(app, color) == False:
             eval(f"app.{color}Pieces['K'].pop()")
             eval(f"app.{color}Pieces['K'].add(king)")
-            print(f"king has move {newKing.row}, {newKing.col}")
+            # print(f"king has move {newKing.row}, {newKing.col}")
             return False
         eval(f"app.{color}Pieces['K'].pop()")
         eval(f"app.{color}Pieces['K'].add(king)")
 
-    print("no king moves...")
+    # print("no king moves...")
     # input()
 
     checkingPieces = getCheckingPieces(app, color) # get pieces that are checking the king!
@@ -999,10 +1195,10 @@ def isMated(app, color):
                 if isValidTake(app, checkingPiece.row, 
                                              checkingPiece.col, piece):
                     return False
-    print("no take moves...", end = "")
+    # print("no take moves...", end = "")
 
     if (len(checkingPieces) == 1) and (isinstance(checkingPieces[0], Knight)):
-        print("Mate by Knight!")
+        # print("Mate by Knight!")
         return True
 
     for pieceType in eval(f"app.{color}Pieces"):
@@ -1027,13 +1223,13 @@ def isMated(app, color):
                     if (piece.hasMove(tempRow, tempCol)
                         and attemptUndoCheck(app, tempRow, tempCol, 
                                                       piece)):
-                        print("returning false!")
+                        # print("returning false!")
                         return False
                     tempRow += unitDRow
                     tempCol += unitDCol
             # print("made through while loop")
 
-    print("no block moves...", end = "")
+    # print("no block moves...", end = "")
     # input()
     # print("mate!")   
     return True
@@ -1137,10 +1333,10 @@ def gameMode_mousePressed(app, event):
             app.validTakes = getValidTakes(app, app.activePiece)
             # print(app.activePiece)
         elif app.activePiece == None and currPlayerColor != clickedSquare.color:
-            print("clicked: chess piece of opp player's color")
+            # print("clicked: chess piece of opp player's color")
             return
         else: # app.activePiece != None
-            print("clicked: active piece exists")
+            # print("clicked: active piece exists")
             
             if app.activePiece.color == clickedSquare.color:
                 app.activePiece = clickedSquare
@@ -1207,7 +1403,7 @@ def drawPieces(app, canvas):
             else:
                 x0, y0, x1, y1 = getDimensions(app, rowIdx, colIdx)
                 canvas.create_text((x0 + x1) / 2, (y0 + y1) / 2,
-                                   text = str(piece), font = "Arial 40",
+                                   text = str(piece), font = "Arial 20",
                                    fill = piece.color)
 
 # draw's small "check" message at top for whichever color is checked
@@ -1339,15 +1535,15 @@ def initializeBoard(app):
         for col in {0, app.cols - 1}:
             newRook = Rook(row, col, color)
             app.gameBoard[row][col] = newRook
-            eval(f"app.{color}Pieces[str(newRook)].add(newRook)")
+            eval(f"app.{color}Pieces['R'].add(newRook)")
         for col in {1, app.cols - 2}:
             newKnight = Knight(row, col, color)
             app.gameBoard[row][col] = newKnight
-            eval(f"app.{color}Pieces[str(newKnight)].add(newKnight)")
+            eval(f"app.{color}Pieces['K'].add(newKnight)")
         for col in {2, app.cols - 3}:
             newBishop = Bishop(row, col, color)
             app.gameBoard[row][col] = newBishop
-            eval(f"app.{color}Pieces[str(newBishop)].add(newBishop)")
+            eval(f"app.{color}Pieces['B'].add(newBishop)")
 
         if color == "white":
             wQueen, wKing = Queen(row, 3, color), King(row, 4, color)
