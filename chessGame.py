@@ -699,26 +699,32 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
         if isMated and playerColor == 'black':
             posVal -= 50
         elif isChecked and playerColor == 'black':
+            print("adding points for black check!")
             posVal -= 15
         elif isMated and playerColor == "white":
             posVal += 50
         elif isChecked and playerColor == "white":
+            print("adding points for white check!")
             posVal += 15
-        
+
+        print(blackPieces)
         for pieceType in blackPieces:
             for piece in blackPieces[pieceType]:
                 posVal -= piece.value
-
+                print(f"{posVal} ", end = '')
+        print(f"\n{whitePieces}")
         for pieceType in whitePieces:
             for piece in whitePieces[pieceType]:
                 posVal += piece.value
-        
+                print(f"{posVal} ", end = '')
+        print(f"\nPosVal: {posVal}")
         return posVal
 
         # if is check or mate, return higher/lower values
         # return value of state (sum of black and white piece values)
-    print("checking moves")
+    print("getting moves from state...", end = '')
     posMovesFromState = aiMode_getMovesFromState(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
+    print("moves gotten!")
     if isMaxPlayerTurn: 
         print("maxEval!")
         maxEval = -100000  
@@ -735,13 +741,12 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
                 # for item in whitePieces[str(piece)]:
                     # print(f"    {str(item)}: {item.row}, {item.col}", end = '')
                 # print()
-                try:
-                    whitePieces[str(piece)].remove(piece)
-                    pieceCopy = piece.copy()
-                    whiteCopy[str(piece)] = {pieceCopy}
-                except:
-                    # print(str(piece), whitePieces)
-                    input()
+                whitePieces[str(piece)].remove(piece)
+                pieceCopy = piece.copy()
+                whiteCopy[str(piece)] = {pieceCopy}
+                # except:
+                #     # print(str(piece), whitePieces)
+                #     input()
 
             else:
                 # print(f"piece in blackPieces: {piece in blackPieces[str(piece)]}")
@@ -749,13 +754,12 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
                 # for item in blackPieces[str(piece)]:
                 #     print(f"    {str(item)}: {item.row}, {item.col}", end = '')
                 # print()
-                try:
-                    blackPieces.remove(piece)
-                    pieceCopy = piece.copy()
-                    blackCopy[str(piece)] = {pieceCopy}
-                except:
-                    # print(str(piece), blackPieces)
-                    input()
+                blackPieces.remove(piece)
+                pieceCopy = piece.copy()
+                blackCopy[str(piece)] = {pieceCopy}
+                # except:
+                #     # print(str(piece), blackPieces)
+                #     input()
 
             for key in whitePieces:
                 for piece in whitePieces[key]:
@@ -798,6 +802,7 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
         print('minEval!')
         minEval = 100000   
         for (piece, moveLoc) in posMovesFromState:
+            print(f"    {piece.color} {piece}, {moveLoc}")
             whiteCopy = dict()
             blackCopy = dict()
             pieceCopy = None
@@ -810,27 +815,25 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
                 # for item in whitePieces[str(piece)]:
                 #     print(f"    {str(item)}: {item.row}, {item.col}", end = '')
                 # print()
-                try:
-                    whitePieces[str(piece)].remove(piece)
-                    pieceCopy = piece.copy()
-                    whiteCopy[str(piece)] = {pieceCopy}
-                except:
-                    # print(str(piece), whitePieces)
-                    input()
+                whitePieces[str(piece)].remove(piece)
+                pieceCopy = piece.copy()
+                whiteCopy[str(piece)] = {pieceCopy}
+                # except:
+                #     # print(str(piece), whitePieces)
+                #     input()
 
             else:
-                # print(f"piece in blackPieces: {piece in blackPieces[str(piece)]}")
+                print(f"piece in blackPieces: {piece in blackPieces[str(piece)]}")
                 # print(f"    {str(piece)}: {piece.row}, {piece.col}")
                 # for item in blackPieces[str(piece)]:
                     # print(f"    {str(item)}: {item.row}, {item.col}", end = '')
                 # print()
-                try:
-                    blackPieces.remove(piece)
-                    pieceCopy = piece.copy()
-                    blackCopy[str(piece)] = {pieceCopy}
-                except:
-                    # print(str(piece), blackPieces)
-                    input()
+                blackPieces[str(piece)].remove(piece)
+                pieceCopy = piece.copy()
+                blackCopy[str(piece)] = {pieceCopy}
+                # except:
+                #     # print(str(piece), blackPieces)
+                #     input()
 
             for key in whitePieces:
                 for piece in whitePieces[key]:
