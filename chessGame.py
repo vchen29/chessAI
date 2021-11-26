@@ -217,9 +217,13 @@ def aiMode_timerFired(app):
         app.activePiece = bestPiece
         row, col = bestMove[0], bestMove[1]
         if isValidMove(app, row, col, bestPiece):
+            print(f"making move {bestPiece}, {row}, {col}")
             makeMove(app, row, col)
+            input()
         else: # isValidTake
+            print(f"making take {bestPiece}, {row}, {col}")
             takePiece(app, row, col)
+            input()
 
         # aiMode_makeAIPlayerMove(app)
 
@@ -647,9 +651,11 @@ def aiMode_getMinimaxBestMove(app, whitePieces, blackPieces, gameBoard, isMaxPla
     minVal = None
     # print("getting posMoves...", end = "")
     posMoves = aiMode_getMovesFromState(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
-    # print(f"PosMoves: {posMoves}")
+    print(f"PosMoves: {posMoves}")
+    input()
     for (piece, (moveRow, moveCol)) in posMoves:
-        depth = 2
+        print(piece, moveRow, moveCol)
+        depth = 1
         whiteCopy = dict()
         for key in whitePieces:
             for piece in whitePieces[key]:
@@ -729,9 +735,11 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
         print("maxEval!")
         maxEval = -100000  
         for (piece, moveLoc) in posMovesFromState:
+            print(f"    {piece.color} {piece}, {moveLoc}")
             whiteCopy = dict()
             blackCopy = dict()
             pieceCopy = None
+
             if piece.color == "white":
                 # print(f"piece in whitePieces: {piece in whitePieces[str(piece)]}")
                 # print(f"    {str(piece)}: {piece.row}, {piece.col}")
