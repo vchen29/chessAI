@@ -219,11 +219,11 @@ def aiMode_timerFired(app):
         if isValidMove(app, row, col, bestPiece):
             print(f"making move {bestPiece}, {row}, {col}")
             makeMove(app, row, col)
-            input()
+            # input()
         else: # isValidTake
             print(f"making take {bestPiece}, {row}, {col}")
             takePiece(app, row, col)
-            input()
+            # input()
 
         # aiMode_makeAIPlayerMove(app)
 
@@ -594,7 +594,7 @@ def aiMode_isMated(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
         eval(f"{color}Pieces['K'].add(king)")
 
     print("no king moves...", end = '')
-    input()
+    # input()
 
     checkingPieces = aiMode_getCheckingPieces(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
     for pieceType in eval(f"app.{color}Pieces"):
@@ -604,12 +604,12 @@ def aiMode_isMated(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
                                 piece, (checkingPiece.row, checkingPiece.col)):
                     return False
     print("no take moves...", end = "")
-    input()
+    # input()
     if (len(checkingPieces) == 1) and (isinstance(checkingPieces[0], Knight)):
         # print("Mate by Knight!")
         return True
     print("not mated by knight...", end = '')
-    input()
+    # input()
     for pieceType in eval(f"{color}Pieces"):
         for piece in eval(f"{color}Pieces[pieceType]"):
             # print(f"testing {piece}")
@@ -640,7 +640,7 @@ def aiMode_isMated(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
             # print("made through while loop")
 
     print("no block moves...", end = "")
-    input()
+    # input()
     print("mate!")   
     return True
 
@@ -652,20 +652,20 @@ def aiMode_getMinimaxBestMove(app, whitePieces, blackPieces, gameBoard, isMaxPla
     # print("getting posMoves...", end = "")
     posMoves = aiMode_getMovesFromState(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
     print(f"PosMoves: {posMoves}")
-    input()
+    # input()
     for (piece, (moveRow, moveCol)) in posMoves:
         print(piece, moveRow, moveCol)
         depth = 1
         whiteCopy = dict()
         for key in whitePieces:
-            for piece in whitePieces[key]:
+            for item in whitePieces[key]:
                 whiteCopy[key] = whiteCopy.get(key, set())
-                whiteCopy[key].add(piece.copy())
+                whiteCopy[key].add(item.copy())
         blackCopy = dict()
         for key in blackPieces:
-            for piece in blackPieces[key]:
+            for item in blackPieces[key]:
                 blackCopy[key] = blackCopy.get(key, set())
-                blackCopy[key].add(piece.copy())
+                blackCopy[key].add(item.copy())
         gameBoardCopy = copyGameBoard(app, gameBoard)
 
         moveVal = aiMode_minimax(app, whiteCopy, blackCopy, gameBoardCopy, depth, isMaxPlayerTurn)
@@ -695,7 +695,7 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
     if isChecked:
         isMated = aiMode_isMated(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
 
-    print(gameBoard)
+    # print(gameBoard)
     if depth == 0 or isMated:
         print(f"returning! {depth} {isMated}")
         posVal = 0
@@ -713,29 +713,34 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
             print("adding points for white check!")
             posVal += 15
 
-        print(blackPieces)
+        # print(blackPieces)
         for pieceType in blackPieces:
-            for piece in blackPieces[pieceType]:
-                posVal -= piece.value
-                print(f"{posVal} ", end = '')
-        print(f"\n{whitePieces}")
+            for item in blackPieces[pieceType]:
+                posVal -= item.value
+                # print(f"{item}: ({item.row},{item.col}) ", end = '')
+        # print(f"\n{whitePieces}")
+        # print()
         for pieceType in whitePieces:
-            for piece in whitePieces[pieceType]:
-                posVal += piece.value
-                print(f"{posVal} ", end = '')
-        print(f"\nPosVal: {posVal}")
+            for item in whitePieces[pieceType]:
+                posVal += item.value
+                # print(f"{item}: ({item.row},{item.col}) ", end = '')
+        # print(f"\nPosVal: {posVal}")
+        # input()
+        # print()
+        # issue is that the previous piece moved is being lost after the method hits
+        # base case and returns... gonna have to find why that is
         return posVal
 
         # if is check or mate, return higher/lower values
         # return value of state (sum of black and white piece values)
-    print("getting moves from state...", end = '')
+    # print("getting moves from state...", end = '')
     posMovesFromState = aiMode_getMovesFromState(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
-    print("moves gotten!")
+    # print("moves gotten!")
     if isMaxPlayerTurn: 
         print("maxEval!")
         maxEval = -100000  
         for (piece, moveLoc) in posMovesFromState:
-            print(f"    {piece.color} {piece}, {moveLoc}")
+            # print(f"    {piece.color} {piece}, {moveLoc}")
             whiteCopy = dict()
             blackCopy = dict()
             pieceCopy = None
@@ -770,14 +775,14 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
                 #     input()
 
             for key in whitePieces:
-                for piece in whitePieces[key]:
+                for item in whitePieces[key]:
                     whiteCopy[key] = whiteCopy.get(key, set())
-                    whiteCopy[key].add(piece.copy())
+                    whiteCopy[key].add(item.copy())
             
             for key in blackPieces:
-                for piece in blackPieces[key]:
+                for item in blackPieces[key]:
                     blackCopy[key] = blackCopy.get(key, set())
-                    blackCopy[key].add(piece.copy())
+                    blackCopy[key].add(item.copy())
             
             if piece.color == "white":
                 whitePieces[str(piece)].add(piece)
@@ -800,7 +805,8 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
                 newWhitePieces, newBlackPieces, newGameBoard = newState[0], newState[1], newState[2]
                 eval = aiMode_minimax(app, newWhitePieces, newBlackPieces, newGameBoard, 
                                       depth - 1, not isMaxPlayerTurn)  
-                maxEval = max(maxEval, eval)   
+                maxEval = max(maxEval, eval)
+                # *** UNDO MOVE HERE! ***   
             else:
                 pass
                 # print('     not a valid move/take!')  
@@ -810,10 +816,11 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
         print('minEval!')
         minEval = 100000   
         for (piece, moveLoc) in posMovesFromState:
-            print(f"    {piece.color} {piece}, {moveLoc}")
+            # print(f"    {piece.color} {piece}, {moveLoc}")
             whiteCopy = dict()
             blackCopy = dict()
             pieceCopy = None
+            # i think i can delete this entire initial color == "white" section
             if piece.color == "white":
                 # print(f"piece in whitePieces: {piece in whitePieces[str(piece)]}")
                 # print(f"    {str(piece)}: {piece.row}, {piece.col}")
@@ -831,34 +838,45 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
                 #     input()
 
             else:
-                print(f"piece in blackPieces: {piece in blackPieces[str(piece)]}")
+                # print(f"piece in blackPieces: {piece in blackPieces[str(piece)]}")
                 # print(f"    {str(piece)}: {piece.row}, {piece.col}")
                 # for item in blackPieces[str(piece)]:
                     # print(f"    {str(item)}: {item.row}, {item.col}", end = '')
                 # print()
-                blackPieces[str(piece)].remove(piece)
+                # for key in blackPieces:
+                #     for item in blackPieces[key]:
+                #         print(f"{item}: ({item.row}, {item.col}) ", end = "") # PIECE VARIABLE IS ALIASING!!
+                # print("\n     before mods ^^^")
+
+                blackPieces[str(piece)].remove(piece) # REMOVE PIECE HERE---------******************
                 pieceCopy = piece.copy()
-                blackCopy[str(piece)] = {pieceCopy}
-                # except:
-                #     # print(str(piece), blackPieces)
-                #     input()
+                blackCopy[str(pieceCopy)] = {pieceCopy}
+                # print("items in blackCopy:")
+                # for key in blackCopy:
+                #     for item in blackCopy[key]:
+                #         print(f"{item}: {item.row} {item.col}")
+                # print("     ^^ so far")
 
             for key in whitePieces:
-                for piece in whitePieces[key]:
+                for item in whitePieces[key]:
                     whiteCopy[key] = whiteCopy.get(key, set())
-                    whiteCopy[key].add(piece.copy())
+                    whiteCopy[key].add(item.copy())
             
             for key in blackPieces:
-                for piece in blackPieces[key]:
+                for item in blackPieces[key]:
+                    # print(f"{item}: {item.row}, {item.col}")
                     blackCopy[key] = blackCopy.get(key, set())
-                    blackCopy[key].add(piece.copy())
-            
+                    blackCopy[key].add(item.copy())
+            # print("     done.")
+            # print("readding piece to blackPieces")
             if piece.color == "white":
                 whitePieces[str(piece)].add(piece)
             else:
                 blackPieces[str(piece)].add(piece)
-
-            # watch aliasing between sets and list for pieces/gameboard respectively
+            # for key in blackPieces:
+            #         for item in blackPieces[key]:
+            #             print(f"{item}: ({item.row},{item.col}) ", end = "")
+            # print("     done.")
         
             gameBoardCopy = copyGameBoard(app, gameBoard)
 
@@ -868,14 +886,23 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
                                              gameBoardCopy, pieceCopy, moveLoc)
 
             if isValidMove or isValidTake:
-                newState = aiMode_makeMove(app, whitePieces, blackCopy, 
+                newState = aiMode_makeMove(app, whiteCopy, blackCopy, 
                                            gameBoardCopy, pieceCopy, moveLoc)
 
                 newWhitePieces, newBlackPieces, newGameBoard = newState[0], newState[1], newState[2]
                 eval = aiMode_minimax(app, newWhitePieces, newBlackPieces, newGameBoard, 
                                       depth - 1, not isMaxPlayerTurn)  
                 minEval = min(minEval, eval)    
-
+            # print("post move/take:")
+            # print("     blackPieces:")
+            for key in blackPieces:
+                    for item in blackPieces[key]:
+                        print(f"{item}: ({item.row},{item.col}) ", end = "")
+            # print("\n     blackCopy:")
+            for key in blackCopy:
+                    for item in blackCopy[key]:
+                        print(f"{item}: ({item.row},{item.col}) ", end = "")
+            # input()
         return minEval 
 
 
