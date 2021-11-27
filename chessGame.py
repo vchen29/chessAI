@@ -507,9 +507,14 @@ def aiMode_attemptUndoCheck(app, whitePieces, blackPieces, gameBoard, piece, mov
                     eval(f"{oppColor}Pieces[str(oppColorPiece)].remove(oppColorPiece)")
                     break
 
+            for item in eval(f"{color}Pieces[str(piece)]"):
+                if item.row == piece.row and item.col == piece.col:
+                    piece = item
+                    eval(f"{color}Pieces[str(piece)].remove(piece)")
+                    break
+
             gameBoard[tempRow][tempCol] = piece
             gameBoard[piece.row][piece.col] = 0
-            eval(f"{color}Pieces[str(piece)].remove(piece)")
 
             pieceCopy.row, pieceCopy.col = tempRow, tempCol
             eval(f"{color}Pieces[str(pieceCopy)].add(pieceCopy)")
@@ -689,20 +694,38 @@ def aiMode_getMinimaxBestMove(app, whitePieces, blackPieces, gameBoard, isMaxPla
     posMoves = aiMode_getMovesFromState(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
     # print(f"PosMoves: {posMoves}")
     # input()
-    for (piece, (moveRow, moveCol)) in posMoves:
+    for (piece, moveLoc) in posMoves:
         # print(piece, moveRow, moveCol)
+        moveRow, moveCol = moveLoc[0], moveLoc[1]
         depth = 1
+        pieceCopy = None
         whiteCopy = dict()
         for key in whitePieces:
             for item in whitePieces[key]:
+                itemCopy = item.copy()
                 whiteCopy[key] = whiteCopy.get(key, set())
-                whiteCopy[key].add(item.copy())
+                whiteCopy[key].add(itemCopy)
+                if (item.color, item.row, item.col) == (piece.color, piece.row, piece.col):
+                    pieceCopy = itemCopy
+
         blackCopy = dict()
         for key in blackPieces:
             for item in blackPieces[key]:
+                itemCopy = item.copy()
                 blackCopy[key] = blackCopy.get(key, set())
-                blackCopy[key].add(item.copy())
+                blackCopy[key].add(itemCopy)
+                if (item.color, item.row, item.col) == (piece.color, piece.row, piece.col):
+                    pieceCopy = itemCopy
+
         gameBoardCopy = copyGameBoard(app, gameBoard)
+
+        if aiMode_isValidMove(app, whiteCopy, blackCopy, gameBoardCopy,
+                              pieceCopy, moveLoc):
+            aiMode_makeMove(app, whiteCopy, blackCopy, gameBoardCopy,
+                            pieceCopy, moveLoc)
+        else: # isValidTake == True
+            aiMode_takePiece(app, whiteCopy, blackCopy, gameBoardCopy,
+                            pieceCopy, moveLoc)
 
         moveVal = aiMode_minimax(app, whiteCopy, blackCopy, gameBoardCopy, depth, isMaxPlayerTurn)
         if bestMove == None or moveVal < minVal:
@@ -763,8 +786,6 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
         # print(f"\nPosVal: {posVal}")
         # input()
         # print()
-        # issue is that the previous piece moved is being lost after the method hits
-        # base case and returns... gonna have to find why that is
         return posVal
 
         # if is check or mate, return higher/lower values
