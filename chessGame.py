@@ -213,7 +213,7 @@ def aiMode_timerFired(app):
                                                 app.blackPieces.copy(),
                                                 gameBoardCopy)
 
-        print(f"Best Move Found: {str(bestPiece)}, {bestMove}")
+        # print(f"Best Move Found: {str(bestPiece)}, {bestMove}")
         app.activePiece = bestPiece
         row, col = bestMove[0], bestMove[1]
         if isValidMove(app, row, col, bestPiece):
@@ -242,10 +242,10 @@ def aiMode_mousePressed(app, event):
     currPlayerColor = app.players[app.playerToMoveIdx % 2]
 
     clickedSquare = app.gameBoard[row][col]
-    print(f"clickedSquare: {clickedSquare}")
-    print(f"whitePieces: {app.whitePieces}")
-    print(f"blackPieces: {app.blackPieces}")
-    print(f"gameBoard: \n{app.gameBoard}")
+    # print(f"clickedSquare: {clickedSquare}")
+    # print(f"whitePieces: {app.whitePieces}")
+    # print(f"blackPieces: {app.blackPieces}")
+    # print(f"gameBoard: \n{app.gameBoard}")
     # user clicked on a chess piece
     if isinstance(clickedSquare, ChessPiece):
         # print("clicked on chess piece!")
@@ -455,9 +455,17 @@ def aiMode_checkBlockingPieces(app, gameBoard, piece, moveLoc):
 
 def aiMode_attemptUndoCheck(app, whitePieces, blackPieces, gameBoard, piece, moveLoc):
     # print(f"AttemptUndoCheck for {piece}: {moveLoc}")
-    # print(f"    White Pieces: {whitePieces}")
-    # print(f"    Black Pieces: {whitePieces}")
-    # print(f"    GameBoard: {gameBoard}")
+    # print(f"    White Pieces: ", end = "")
+    # for key in whitePieces:
+    #     for item in whitePieces[key]:
+    #         print(f"{item}: ({item.row},{item.col}) ", end = "")
+    
+    # print(f"\n    Black Pieces: ", end = "")
+    # for key in blackPieces:
+    #     for item in blackPieces[key]:
+    #         print(f"{item}: ({item.row},{item.col}) ", end = "")
+    # print(f"\n    GameBoard: {gameBoard}")
+
     tempRow, tempCol = moveLoc[0], moveLoc[1]
     tempBoardSq = gameBoard[tempRow][tempCol]
     if isinstance(tempBoardSq, ChessPiece) and tempBoardSq.color == piece.color:
@@ -467,14 +475,38 @@ def aiMode_attemptUndoCheck(app, whitePieces, blackPieces, gameBoard, piece, mov
     color = piece.color
     pieceCopy = piece.copy()
 
-    whitePiecesCopy = whitePieces.copy()
-    blackPiecesCopy = blackPieces.copy()
+    whitePiecesCopy = dict()
+    for key in whitePieces:
+        for item in whitePieces[key]:
+            whitePiecesCopy[key] = whitePiecesCopy.get(key, set())
+            whitePiecesCopy[key].add(item.copy())
+        
+    blackPiecesCopy = dict()
+    for key in blackPieces:
+        for item in blackPieces[key]:
+            blackPiecesCopy[key] = blackPiecesCopy.get(key, set())
+            blackPiecesCopy[key].add(item.copy())
+
     dRow, dCol = tempRow - piece.row, tempCol - piece.col
 
-    if isinstance(tempBoardSq, ChessPiece) and tempBoardSq.color != piece.color:
+    if isinstance(tempBoardSq, ChessPiece) and (tempBoardSq.color != piece.color):
         oppColorPiece = tempBoardSq
+        # print(f"tempBoardSq {tempBoardSq}: ({tempBoardSq.row}, {tempBoardSq.col})", end = "")
+        # keySet = eval(f"{oppColor}Pieces[str(tempBoardSq)]")
+        # print(f"in: {tempBoardSq in keySet}")
+
         if piece.hasTake(dRow, dCol):
-            eval(f"{oppColor}Pieces[str(oppColorPiece)].remove(oppColorPiece)")
+            # print(f"{oppColor}Pieces: ", end = "")
+            # for key in eval(f"{oppColor}Pieces"):
+            #     for item in eval(f"{oppColor}Pieces[key]"):
+            #         print(f"{item}: ({item.row},{item.col}) ", end = "")
+            
+            for item in eval(f"{oppColor}Pieces[str(oppColorPiece)]"):
+                if item.row == oppColorPiece.row and item.col == oppColorPiece.col:
+                    oppColorPiece = item
+                    eval(f"{oppColor}Pieces[str(oppColorPiece)].remove(oppColorPiece)")
+                    break
+
             gameBoard[tempRow][tempCol] = piece
             gameBoard[piece.row][piece.col] = 0
             eval(f"{color}Pieces[str(piece)].remove(piece)")
