@@ -242,6 +242,10 @@ def aiMode_mousePressed(app, event):
     currPlayerColor = app.players[app.playerToMoveIdx % 2]
 
     clickedSquare = app.gameBoard[row][col]
+    print(f"clickedSquare: {clickedSquare}")
+    print(f"whitePieces: {app.whitePieces}")
+    print(f"blackPieces: {app.blackPieces}")
+    print(f"gameBoard: \n{app.gameBoard}")
     # user clicked on a chess piece
     if isinstance(clickedSquare, ChessPiece):
         # print("clicked on chess piece!")
@@ -593,7 +597,7 @@ def aiMode_isMated(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
         eval(f"{color}Pieces['K'].pop()")
         eval(f"{color}Pieces['K'].add(king)")
 
-    print("no king moves...", end = '')
+    # print("no king moves...", end = '')
     # input()
 
     checkingPieces = aiMode_getCheckingPieces(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
@@ -603,12 +607,12 @@ def aiMode_isMated(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
                 if aiMode_isValidTake(app, whitePieces, blackPieces, gameBoard, 
                                 piece, (checkingPiece.row, checkingPiece.col)):
                     return False
-    print("no take moves...", end = "")
+    # print("no take moves...", end = "")
     # input()
     if (len(checkingPieces) == 1) and (isinstance(checkingPieces[0], Knight)):
         # print("Mate by Knight!")
         return True
-    print("not mated by knight...", end = '')
+    # print("not mated by knight...", end = '')
     # input()
     for pieceType in eval(f"{color}Pieces"):
         for piece in eval(f"{color}Pieces[pieceType]"):
@@ -639,22 +643,22 @@ def aiMode_isMated(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
                     tempCol += unitDCol
             # print("made through while loop")
 
-    print("no block moves...", end = "")
+    # print("no block moves...", end = "")
     # input()
-    print("mate!")   
+    # print("mate!")   
     return True
 
 def aiMode_getMinimaxBestMove(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn = False):
-    # print("running getMinimaxBestMove.")
+    print("\n\n\nrunning getMinimaxBestMove.")
     bestPiece = None
     bestMove = None
     minVal = None
     # print("getting posMoves...", end = "")
     posMoves = aiMode_getMovesFromState(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
-    print(f"PosMoves: {posMoves}")
+    # print(f"PosMoves: {posMoves}")
     # input()
     for (piece, (moveRow, moveCol)) in posMoves:
-        print(piece, moveRow, moveCol)
+        # print(piece, moveRow, moveCol)
         depth = 1
         whiteCopy = dict()
         for key in whitePieces:
@@ -686,7 +690,7 @@ def aiMode_getPlayerColor(isMaxPlayerTurn):
 # state stores the temporary set of pieces for both colors (and gameboard??)
 # say isMaximizingPlayer is white (player)
 def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerTurn):
-    print(f"------DEPTH: {depth}, Turn: {isMaxPlayerTurn}------")
+    # print(f"------DEPTH: {depth}, Turn: {isMaxPlayerTurn}------")
     # print(f"    {whitePieces}")
     # print(f"    {blackPieces}")
     # print(f"    {gameBoard}")
@@ -697,7 +701,7 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
 
     # print(gameBoard)
     if depth == 0 or isMated:
-        print(f"returning! {depth} {isMated}")
+        # print(f"returning! {depth} {isMated}")
         posVal = 0
         playerColor = aiMode_getPlayerColor(isMaxPlayerTurn)
 
@@ -737,7 +741,7 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
     posMovesFromState = aiMode_getMovesFromState(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
     # print("moves gotten!")
     if isMaxPlayerTurn: 
-        print("maxEval!")
+        # print("maxEval!")
         maxEval = -100000  
         for (piece, moveLoc) in posMovesFromState:
             # print(f"    {piece.color} {piece}, {moveLoc}")
@@ -813,7 +817,7 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
         return maxEval
         
     else:    
-        print('minEval!')
+        # print('minEval!')
         minEval = 100000   
         for (piece, moveLoc) in posMovesFromState:
             # print(f"    {piece.color} {piece}, {moveLoc}")
@@ -895,22 +899,20 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
                 minEval = min(minEval, eval)    
             # print("post move/take:")
             # print("     blackPieces:")
-            for key in blackPieces:
-                    for item in blackPieces[key]:
-                        print(f"{item}: ({item.row},{item.col}) ", end = "")
-            # print("\n     blackCopy:")
-            for key in blackCopy:
-                    for item in blackCopy[key]:
-                        print(f"{item}: ({item.row},{item.col}) ", end = "")
+            # for key in blackPieces:
+            #         for item in blackPieces[key]:
+            #             print(f"{item}: ({item.row},{item.col}) ", end = "")
+            # # print("\n     blackCopy:")
+            # for key in blackCopy:
+            #         for item in blackCopy[key]:
+            #             print(f"{item}: ({item.row},{item.col}) ", end = "")
             # input()
         return minEval 
 
 
 ########################
-# DRAW FUNCTIONS
+# AI FUNCTIONS
 ######################## 
-
-# def getRandIdx(L):
         
 def aiMode_makeAIPlayerMove(app):
     seenIdxs = set()
@@ -1577,7 +1579,7 @@ def initializeBoard(app):
         for col in {1, app.cols - 2}:
             newKnight = Knight(row, col, color)
             app.gameBoard[row][col] = newKnight
-            eval(f"app.{color}Pieces['K'].add(newKnight)")
+            eval(f"app.{color}Pieces['N'].add(newKnight)")
         for col in {2, app.cols - 3}:
             newBishop = Bishop(row, col, color)
             app.gameBoard[row][col] = newBishop
