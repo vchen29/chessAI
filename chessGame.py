@@ -616,82 +616,45 @@ def aiMode_getCheckedAndPieces(app, whitePieces, blackPieces, gameBoard, isMaxPl
     # print()
     return (checkingPieces, checked)
 
+def aiMode_getValidMoves(app, whitePieces, blackPieces, gameBoard, piece):
+    posMoves = piece.posMoves
+    currRow, currCol = piece.row, piece.col
+    validMoves = set()
+    for (dRow, dCol) in posMoves:
+        moveRow, moveCol = currRow + dRow, currCol + dCol
+        moveLoc = (moveRow, moveCol)
+        if (aiMode_isValidTake(app, whitePieces, blackPieces, 
+                               gameBoard, piece, moveLoc)):
+            validMoves.add((moveRow, moveCol))
+    return validMoves
+
+# returns set of valid take moves for given piece
+def aiMode_getValidTakes(app, whitePieces, blackPieces, gameBoard, piece):
+    posTakes = piece.takeMoves
+    currRow, currCol = piece.row, piece.col
+    validTakes = set()
+    for (dRow, dCol) in posTakes:
+        moveRow, moveCol = currRow + dRow, currCol + dCol
+        moveLoc = (moveRow, moveCol)
+        if (aiMode_isValidTake(app, whitePieces, blackPieces, 
+                               gameBoard, piece, moveLoc)):
+            # print(f"GameBoard (take) at {moveRow}, {moveCol}: {app.gameBoard[moveRow][moveCol]}")
+            validTakes.add((moveRow, moveCol))
+    return validTakes
+
+# returns True if the active player is mated in the node state
 def aiMode_isMated(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
-    # print("running isMated...", end = '')
     color = aiMode_getPlayerColor(isMaxPlayerTurn)
 
-    king = eval(f"{color}Pieces['K'].pop()")
-    eval(f"{color}Pieces['K'].add(king)")
-    kingRow, kingCol = king.row, king.col
-
-    for drow, dcol in king.posMoves:
-        newKing = king.copy()
-        newKing.row += drow
-        newKing.col += dcol
-
-        if (aiMode_isValidMove(app, whitePieces, blackPieces, gameBoard, 
-            king, (newKing.row, newKing.col)) == False):
-            continue
-        
-        eval(f"{color}Pieces['K'].pop()")
-        eval(f"{color}Pieces['K'].add(newKing)")
-        if aiMode_isChecked(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn) == False:
-            eval(f"{color}Pieces['K'].pop()")
-            eval(f"{color}Pieces['K'].add(king)")
-            # print(f"king has move {newKing.row}, {newKing.col}")
-            return False
-        eval(f"{color}Pieces['K'].pop()")
-        eval(f"{color}Pieces['K'].add(king)")
-
-    # print("no king moves...", end = '')
-    # input()
-
-    checkingPieces = aiMode_getCheckingPieces(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
-    for pieceType in eval(f"app.{color}Pieces"):
-        for piece in eval(f"app.{color}Pieces[pieceType]"):
-            for checkingPiece in checkingPieces:
-                if aiMode_isValidTake(app, whitePieces, blackPieces, gameBoard, 
-                                piece, (checkingPiece.row, checkingPiece.col)):
-                    return False
-    # print("no take moves...", end = "")
-    # input()
-    if (len(checkingPieces) == 1) and (isinstance(checkingPieces[0], Knight)):
-        # print("Mate by Knight!")
-        return True
-    # print("not mated by knight...", end = '')
-    # input()
     for pieceType in eval(f"{color}Pieces"):
         for piece in eval(f"{color}Pieces[pieceType]"):
-            # print(f"testing {piece}")
-            # input()
-            pieceRow, pieceCol = piece.row, piece.col
-            for checkingPiece in checkingPieces:
-                dRow, dCol = (checkingPiece.row - kingRow), (checkingPiece.col - kingCol)
-                dist = math.sqrt(dRow ** 2 + dCol ** 2)
-                # print(f"dRow, dCol: {dRow}, {dCol}, dist: {dist}")
-                unitDRow, unitDCol = math.ceil(dRow / dist), math.ceil(dCol / dist)
-                if dRow / dist < 0:
-                    unitDRow = -math.ceil(abs(dRow/dist))
-                if dCol / dist < 0:
-                    unitDCol = -math.ceil(abs(dCol/dist))
-                tempRow, tempCol = kingRow, kingCol
-                while tempRow != checkingPiece.row or tempCol != checkingPiece.col:
-                    # print(f"tempRow, tempCol: {tempRow}, {tempCol}")
-                    # print(f"pieceRow, pieceCol: {pieceRow}, {pieceCol}")
-                    # input()
-                    if (piece.hasMove(tempRow, tempCol)
-                        and aiMode_attemptUndoCheck(app, whitePieces, blackPieces,
-                                                    gameBoard, piece, 
-                                                    (tempRow, tempCol))):
-                        # print("returning false!")
-                        return False
-                    tempRow += unitDRow
-                    tempCol += unitDCol
-            # print("made through while loop")
-
-    # print("no block moves...", end = "")
-    # input()
-    # print("mate!") 
+            validMoves = aiMode_getValidMoves(app, whitePieces, blackPieces,
+                                              gameBoard, piece)
+            validTakes = aiMode_getValidTakes(app, whitePieces, blackPieces,
+                                              gameBoard, piece)
+            if (validMoves != set() or validTakes != set()):
+                # print(f"{piece} at {piece.row}, {piece.col} has {validMoves} or {validTakes}")
+                return False
 
     return True
 
@@ -1278,44 +1241,6 @@ def getCheckedAndPieces(app, color):
 def isMated(app, color):
     # print(f"checking if {color} is mated...", end = "")
     # input()
-    # king = eval(f"app.{color}Pieces['K'].pop()")
-    # eval(f"app.{color}Pieces['K'].add(king)")
-    # kingRow, kingCol = king.row, king.col
-
-    # for drow, dcol in king.posMoves:
-    #     newKing = king.copy()
-    #     newKing.row += drow
-    #     newKing.col += dcol
-
-    #     if isValidMove(app, newKing.row, newKing.col, king) == False:
-    #         continue
-        
-    #     eval(f"app.{color}Pieces['K'].pop()")
-    #     eval(f"app.{color}Pieces['K'].add(newKing)")
-    #     if isChecked(app, color) == False:
-    #         eval(f"app.{color}Pieces['K'].pop()")
-    #         eval(f"app.{color}Pieces['K'].add(king)")
-    #         print(f"king has move {newKing.row}, {newKing.col}")
-    #         return False
-    #     eval(f"app.{color}Pieces['K'].pop()")
-    #     eval(f"app.{color}Pieces['K'].add(king)")
-
-    # print("no king moves...")
-    # # input()
-
-    # checkingPieces = getCheckingPieces(app, color) # get pieces that are checking the king!
-    # for pieceType in eval(f"app.{color}Pieces"):
-    #     for piece in eval(f"app.{color}Pieces[pieceType]"):
-    #         for checkingPiece in checkingPieces:
-    #             if isValidTake(app, checkingPiece.row, 
-    #                                          checkingPiece.col, piece):
-    #                 print(f"{piece} take {checkingPiece.row}, {checkingPiece.col} exists!")
-    #                 return False
-    # print("no take moves...", end = "")
-
-    # if (len(checkingPieces) == 1) and (isinstance(checkingPieces[0], Knight)):
-    #     # print("Mate by Knight!")
-    #     return True
 
     for pieceType in eval(f"app.{color}Pieces"):
         for piece in eval(f"app.{color}Pieces[pieceType]"):
@@ -1325,7 +1250,7 @@ def isMated(app, color):
             # print(f"    getting takeMoves...")
             validTakes = getValidTakes(app, piece)
             if (validMoves != set() or validTakes != set()):
-                print(f"{piece} at {piece.row}, {piece.col} has {validMoves} or {validTakes}")
+                # print(f"{piece} at {piece.row}, {piece.col} has {validMoves} or {validTakes}")
                 return False
             # print("made through while loop")
 
