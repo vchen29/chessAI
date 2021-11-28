@@ -569,17 +569,14 @@ def aiMode_attemptUndoCheck(app, whitePieces, blackPieces, gameBoard, piece, mov
     return False
 
 def aiMode_isChecked(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
-    # print("running isChecked...")
     return aiMode_getCheckedAndPieces(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)[1]
 
+# can remove this if needed as it's not used in the code
 def aiMode_getCheckingPieces(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
-    # print("running getCheckingPieces...")
     return aiMode_getCheckedAndPieces(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)[0]
 
 def aiMode_getCheckedAndPieces(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
-    # print("running getCheckedAndPieces...")
     color = aiMode_getPlayerColor(isMaxPlayerTurn)
-    # print(eval(f"   {color}Pieces"))
     king = eval(f"{color}Pieces['K'].pop()")
     eval(f"{color}Pieces['K'].add(king)")
     checked = False
@@ -593,8 +590,6 @@ def aiMode_getCheckedAndPieces(app, whitePieces, blackPieces, gameBoard, isMaxPl
                 checked = True
                 checkingPieces.append(tempPiece)
     
-    # print("     ... no knight checks!")
-
     for dirRow, dirCol in king.posMoves:
         row, col = king.row + dirRow, king.col + dirCol
         while rowColInBounds(app, row, col):
@@ -612,8 +607,6 @@ def aiMode_getCheckedAndPieces(app, whitePieces, blackPieces, gameBoard, isMaxPl
             row += dirRow
             col += dirCol
 
-    # print(f"    checking pieces: {str(checkingPieces)}, checked: {checked}")
-    # print()
     return (checkingPieces, checked)
 
 def aiMode_getValidMoves(app, whitePieces, blackPieces, gameBoard, piece):
@@ -1176,6 +1169,7 @@ def takePiece(app, row, col):
         #     app.activePiece.posMoves.pop()
         takenPiece = app.gameBoard[row][col]
         eval(f"app.{takenPiece.color}Pieces[str(takenPiece)].remove(takenPiece)")
+        eval(f"app.{takenPiece.color}TakenPieces.add(takenPiece)")
 
         app.gameBoard[row][col] = app.activePiece
         eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].add(app.activePiece)")
@@ -1438,8 +1432,15 @@ def gameMode_redrawAll(app, canvas):
 # GENERAL CONTROLS
 #################################################
 # draws pause symbol
-def drawPause(app, canvas):
-    pass
+def drawTakenPieces(app, canvas):
+    idx = 0
+    for piece in app.whiteTakenPieces:
+        canvas.create_text()
+        idx += 1
+
+    idx = 0
+    for piece in app.blackTakenPieces:
+        idx += 1
 
 # draw chess game board
 def drawBoard(app, canvas):
@@ -1462,16 +1463,14 @@ def drawBoard(app, canvas):
                             outline = "yellow")
 # draw pieces on game board
 def drawPieces(app, canvas):
-    for rowIdx in range(len(app.gameBoard)):
-        for colIdx in range(len(app.gameBoard[rowIdx])):
-            piece = app.gameBoard[rowIdx][colIdx]
-            if type(piece) == int:
-                continue
-            else:
-                x0, y0, x1, y1 = getDimensions(app, rowIdx, colIdx)
-                canvas.create_text((x0 + x1) / 2, (y0 + y1) / 2,
-                                   text = str(piece), font = "Arial 20",
-                                   fill = piece.color)
+    for pieceType in {'P', 'N', 'B', 'R', 'Q', 'K'}:
+        whiteTypePieces = app.whitePieces[pieceType]
+        blackTypePieces = app.blackPieces[pieceType]
+        for piece in whiteTypePieces.union(blackTypePieces):
+            x0, y0, x1, y1 = getDimensions(app, piece.row, piece.col)
+            canvas.create_text((x0 + x1) / 2, (y0 + y1) / 2,
+                                    text = str(piece), font = "Arial 20",
+                                    fill = piece.color)
 
 # draw's small "check" message at top for whichever color is checked
 def drawCheck(app, canvas):
@@ -1629,6 +1628,11 @@ def getRowCol(app, x, y):
         # scale image down from 200x200 to whatever equals size of board square
         
 def initializeBoard(app):
+    app.whitePieces = {"P": set(), "B": set(), "N": set(), 
+                       "R": set(), "K": set(), "Q": set()}
+    app.blackPieces = {"P": set(), "B": set(), "N": set(), 
+                       "R": set(), "K": set(), "Q": set()}
+
     for col in range(app.cols):
         bPawn, wPawn = Pawn(1, col, "black"), Pawn(app.rows - 2, col, "white")
         app.gameBoard[1][col] = bPawn
@@ -1723,11 +1727,9 @@ def appStarted(app):
     app.playerToMoveIdx = 0
     app.players = ["white", "black"]
 
-    app.whitePieces = {"P": set(), "B": set(), "N": set(), 
-                       "R": set(), "K": set(), "Q": set()}
-    app.blackPieces = {"P": set(), "B": set(), "N": set(), 
-                       "R": set(), "K": set(), "Q": set()}
-    
+    app.whiteTakenPieces = set()
+    app.blackTakenPieces = set()
+
     app.checked = None
     app.gameOver = False
 
