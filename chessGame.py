@@ -659,7 +659,7 @@ def aiMode_isMated(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
     return True
 
 def aiMode_getMinimaxBestMove(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn = False):
-    print("\n\n\nrunning getMinimaxBestMove.")
+    # print("\n\n\nrunning getMinimaxBestMove.")
     bestPiece = None
     bestMove = None
     minVal = None
@@ -705,6 +705,8 @@ def aiMode_getMinimaxBestMove(app, whitePieces, blackPieces, gameBoard, isMaxPla
             minVal = moveVal
             bestPiece = piece
             bestMove = (moveRow, moveCol)
+            # print(f"New Best Move (depth: {depth}): {piece} to {moveLoc}")
+    # input()
     return bestPiece, bestMove
 
 # returns current player's color depending on isMaxPlayerTurn value
@@ -1449,7 +1451,15 @@ def drawBoard(app, canvas):
             canvas.create_rectangle(x0, y0, x1, y1,
                                     fill = app.boardColors[(row + col) % 2],
                                     width = app.squareOutlineWidth)
+    # highlight active piece square
+    if app.activePiece == None:
+        return
 
+    x0, y0, x1, y1 = getDimensions(app, app.activePiece.row, app.activePiece.col)
+    canvas.create_rectangle(x0, y0, x1, y1,
+                            fill = app.boardColors[(app.activePiece.row + app.activePiece.col) % 2],
+                            width = app.squareOutlineWidth - 2,
+                            outline = "yellow")
 # draw pieces on game board
 def drawPieces(app, canvas):
     for rowIdx in range(len(app.gameBoard)):
@@ -1465,8 +1475,14 @@ def drawPieces(app, canvas):
 
 # draw's small "check" message at top for whichever color is checked
 def drawCheck(app, canvas):
-    canvas.create_text(app.width / 2, app.margin, 
-                       text = f"{app.checked} check!", font = "Arial 20",
+    canvas.create_rectangle(app.pauseMargin, app.pauseMargin,
+                            app.pauseMargin + app.buttonWidth,
+                            app.pauseMargin + app.buttonHeight,
+                            width = app.pauseButtonLineWidth,
+                            fill = "yellow")
+    canvas.create_text(app.pauseMargin + app.buttonWidth / 2, 
+                       app.pauseMargin + app.buttonHeight / 2, 
+                       text = f"{app.checked} checked!", font = "Arial 10",
                        fill = "black")
 
 # draws player's avaliable moves on canvas
