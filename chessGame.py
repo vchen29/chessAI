@@ -617,7 +617,7 @@ def aiMode_getCheckedAndPieces(app, whitePieces, blackPieces, gameBoard, isMaxPl
     return (checkingPieces, checked)
 
 def aiMode_isMated(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
-    print("running isMated...", end = '')
+    # print("running isMated...", end = '')
     color = aiMode_getPlayerColor(isMaxPlayerTurn)
 
     king = eval(f"{color}Pieces['K'].pop()")
@@ -643,7 +643,7 @@ def aiMode_isMated(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
         eval(f"{color}Pieces['K'].pop()")
         eval(f"{color}Pieces['K'].add(king)")
 
-    print("no king moves...", end = '')
+    # print("no king moves...", end = '')
     # input()
 
     checkingPieces = aiMode_getCheckingPieces(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
@@ -653,12 +653,12 @@ def aiMode_isMated(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
                 if aiMode_isValidTake(app, whitePieces, blackPieces, gameBoard, 
                                 piece, (checkingPiece.row, checkingPiece.col)):
                     return False
-    print("no take moves...", end = "")
+    # print("no take moves...", end = "")
     # input()
     if (len(checkingPieces) == 1) and (isinstance(checkingPieces[0], Knight)):
         # print("Mate by Knight!")
         return True
-    print("not mated by knight...", end = '')
+    # print("not mated by knight...", end = '')
     # input()
     for pieceType in eval(f"{color}Pieces"):
         for piece in eval(f"{color}Pieces[pieceType]"):
@@ -689,9 +689,9 @@ def aiMode_isMated(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
                     tempCol += unitDCol
             # print("made through while loop")
 
-    print("no block moves...", end = "")
+    # print("no block moves...", end = "")
     # input()
-    print("mate!") 
+    # print("mate!") 
 
     return True
 
@@ -1099,12 +1099,12 @@ def isValidTake(app, takeRow, takeCol, piece):
     if rowColInBounds(app, takeRow, takeCol) == False:
         return False
     # check if takeRow, takeCol is a ChessPiece of opposite color to piece
-    print(f"checking if {str(piece)} can take ({takeRow},{takeCol})")
+    # print(f"checking if {str(piece)} can take ({takeRow},{takeCol})")
     takeSquare = app.gameBoard[takeRow][takeCol]
     
     if (isinstance(takeSquare, ChessPiece) == False):
         return False
-    print(f"{takeSquare} {takeSquare.color} and {piece} {piece.color} are same color: {takeSquare.color == piece.color}")
+    # print(f"{takeSquare} {takeSquare.color} and {piece} {piece.color} are same color: {takeSquare.color == piece.color}")
     if (isinstance(takeSquare, ChessPiece) and 
           takeSquare.color == piece.color):
         return False
@@ -1120,7 +1120,6 @@ def isValidTake(app, takeRow, takeCol, piece):
     isChecked = attemptUndoCheck(app, takeRow, takeCol, piece)
     if hasNoBlockingPieces and isChecked:
         # print("no blocking pieces... returning True")
-
         return True
     else:
         # print("has blocking pieces... returning False")
@@ -1277,8 +1276,8 @@ def getCheckedAndPieces(app, color):
     return (checkingPieces, checked)
 
 def isMated(app, color):
-    print(f"checking if {color} is mated...", end = "")
-    input()
+    # print(f"checking if {color} is mated...", end = "")
+    # input()
     # king = eval(f"app.{color}Pieces['K'].pop()")
     # eval(f"app.{color}Pieces['K'].add(king)")
     # kingRow, kingCol = king.row, king.col
@@ -1320,19 +1319,19 @@ def isMated(app, color):
 
     for pieceType in eval(f"app.{color}Pieces"):
         for piece in eval(f"app.{color}Pieces[pieceType]"):
-            print(f"    checking {piece} at ({piece.row}, {piece.col}) moves...")
-            print(f"    getting validMoves...")
+            # print(f"    checking {piece} at ({piece.row}, {piece.col}) moves...")
+            # print(f"    getting validMoves...")
             validMoves = getValidMoves(app, piece)
-            print(f"    getting takeMoves...")
+            # print(f"    getting takeMoves...")
             validTakes = getValidTakes(app, piece)
             if (validMoves != set() or validTakes != set()):
                 print(f"{piece} at {piece.row}, {piece.col} has {validMoves} or {validTakes}")
                 return False
             # print("made through while loop")
 
-    print("no moves...", end = "")
+    # print("no moves...", end = "")
     # input()
-    print("mate!")   
+    # print("mate!")   
     return True
 
 # returns True if move successfully undoes check
@@ -1619,7 +1618,7 @@ def getValidTakes(app, piece):
         moveRow, moveCol = currRow + dRow, currCol + dCol
         if (isValidTake(app, moveRow, moveCol, piece)):
             # and attemptUndoCheck(app, moveRow, moveCol, app.activePiece) == False):
-            print(f"GameBoard (take) at {moveRow}, {moveCol}: {app.gameBoard[moveRow][moveCol]}")
+            # print(f"GameBoard (take) at {moveRow}, {moveCol}: {app.gameBoard[moveRow][moveCol]}")
             validTakes.add((moveRow, moveCol))
     return validTakes
 
