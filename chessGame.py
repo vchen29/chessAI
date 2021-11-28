@@ -185,6 +185,7 @@ def homeScreenMode_mousePressed(app, event):
 
 def homeScreenMode_redrawAll(app, canvas):
     homeScreenMode_drawScreen(app, canvas)
+    
 
 #################################################
 # AI MODE
@@ -206,58 +207,70 @@ def copyGameBoard(app, board):
 def aiMode_timerFired(app):
     # tests to see if it's computer's turn
     if app.playerToMoveIdx % 2 == 1:
-        # CODE BELOW RUNS MINIMAX! (I've commented it out because it's very bugged)
         gameBoardCopy = copyGameBoard(app, app.gameBoard)
 
         bestPiece, bestMove = aiMode_getMinimaxBestMove(app, app.whitePieces.copy(), 
                                                 app.blackPieces.copy(),
                                                 gameBoardCopy)
 
-        # print(f"Best Move Found: {str(bestPiece)}, {bestMove}")
         app.activePiece = bestPiece
         row, col = bestMove[0], bestMove[1]
         if isValidMove(app, row, col, bestPiece):
-            print(f"making move {bestPiece}, {row}, {col}")
             makeMove(app, row, col)
-            # input()
         else: # isValidTake
-            print(f"making take {bestPiece}, {row}, {col}")
             takePiece(app, row, col)
-            # input()
 
         # aiMode_makeAIPlayerMove(app)
 
 def aiMode_mousePressed(app, event):
-    if app.gameOver == True:
+    if app.gameOver:
+        return
+
+    x, y = event.x, event.y
+    if app.paused: 
+        # quit pressed
+        if (x > app.quitX - app.pauseButtonsWidth
+           and x < app.quitX + app.pauseButtonsWidth
+           and y > app.quitY - app.pauseButtonsHeight
+           and y < app.quitY + app.pauseButtonsHeight):
+           app.paused = False
+           app.mode = "homeScreenMode"
+           appStarted(app)
+        # resume pressed
+        elif (x > app.resumeX - app.pauseButtonsWidth
+              and x < app.resumeX + app.pauseButtonsWidth
+              and y > app.resumeY - app.pauseButtonsHeight
+              and y < app.resumeY + app.pauseButtonsHeight):
+            app.paused = False
         return
     
     # assuming player is always white, stops mouse pressed if it's not white's turn
     if app.playerToMoveIdx % 2 != 0:
         return
 
-    x, y = event.x, event.y
+    # if x, y within pause button bounds
+    if (x > app.pauseX and y > app.pauseY 
+        and x < app.pauseX + app.pauseWidth 
+        and y < app.pauseY + app.pauseWidth):
+        app.paused = True
+        return
+    
     if inBoard(app, x, y) == False:
         return
     row, col = getRowCol(app, x, y)
     currPlayerColor = app.players[app.playerToMoveIdx % 2]
 
     clickedSquare = app.gameBoard[row][col]
-    # print(f"clickedSquare: {clickedSquare}")
-    # print(f"whitePieces: {app.whitePieces}")
-    # print(f"blackPieces: {app.blackPieces}")
-    # print(f"gameBoard: \n{app.gameBoard}")
+
     # user clicked on a chess piece
     if isinstance(clickedSquare, ChessPiece):
-        # print("clicked on chess piece!")
         if app.activePiece == None and currPlayerColor == clickedSquare.color:
-            # print("clicked: chess piece of player's color")
-            # if (app.gameBoard[row][col].color != 
-            #     app.players[app.playerToMoveIdx % 2]):
-            #     return
+            if (app.gameBoard[row][col].color != 
+                app.players[app.playerToMoveIdx % 2]):
+                return
             app.activePiece = clickedSquare
             app.validMoves = getValidMoves(app, app.activePiece)
             app.validTakes = getValidTakes(app, app.activePiece)
-            # print(app.activePiece)
         elif app.activePiece == None and currPlayerColor != clickedSquare.color:
             return
         else: # app.activePiece != None
@@ -270,13 +283,8 @@ def aiMode_mousePressed(app, event):
                 takePiece(app, row, col)
 
     else: # user clicked on an empty space
-        # print(f"empty space clicked! {app.activePiece}")
         if app.activePiece != None:
-            # print("attempting to make move...")
-            # print(app.activePiece, isValidMove(app, row, col))
             makeMove(app, row, col)
-    # print(app.gameBoard)
-    # print(app.activePiece)
 
 ########################
 # MINIMAX FUNCTIONS
@@ -310,6 +318,7 @@ def aiMode_isValidMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc)
     else:
         # print("finishing isValidMove.")
         return False
+
 # returns True if proposed move is a valid take move for piece
 def aiMode_isValidTake(app, whitePieces, blackPieces, gameBoard, piece, moveLoc):
     # print('running isValidTake...', end = "")
@@ -608,7 +617,7 @@ def aiMode_getCheckedAndPieces(app, whitePieces, blackPieces, gameBoard, isMaxPl
     return (checkingPieces, checked)
 
 def aiMode_isMated(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
-    # print("running isMated...", end = '')
+    print("running isMated...", end = '')
     color = aiMode_getPlayerColor(isMaxPlayerTurn)
 
     king = eval(f"{color}Pieces['K'].pop()")
@@ -634,7 +643,7 @@ def aiMode_isMated(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
         eval(f"{color}Pieces['K'].pop()")
         eval(f"{color}Pieces['K'].add(king)")
 
-    # print("no king moves...", end = '')
+    print("no king moves...", end = '')
     # input()
 
     checkingPieces = aiMode_getCheckingPieces(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
@@ -644,12 +653,12 @@ def aiMode_isMated(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
                 if aiMode_isValidTake(app, whitePieces, blackPieces, gameBoard, 
                                 piece, (checkingPiece.row, checkingPiece.col)):
                     return False
-    # print("no take moves...", end = "")
+    print("no take moves...", end = "")
     # input()
     if (len(checkingPieces) == 1) and (isinstance(checkingPieces[0], Knight)):
         # print("Mate by Knight!")
         return True
-    # print("not mated by knight...", end = '')
+    print("not mated by knight...", end = '')
     # input()
     for pieceType in eval(f"{color}Pieces"):
         for piece in eval(f"{color}Pieces[pieceType]"):
@@ -680,9 +689,10 @@ def aiMode_isMated(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
                     tempCol += unitDCol
             # print("made through while loop")
 
-    # print("no block moves...", end = "")
+    print("no block moves...", end = "")
     # input()
-    # print("mate!")   
+    print("mate!") 
+
     return True
 
 def aiMode_getMinimaxBestMove(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn = False):
@@ -764,13 +774,13 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
         if isMated and playerColor == 'black':
             posVal -= 50
         elif isChecked and playerColor == 'black':
-            print("adding points for black check!")
-            posVal -= 15
+            # print("adding points for black check!")
+            posVal -= 5
         elif isMated and playerColor == "white":
             posVal += 50
         elif isChecked and playerColor == "white":
-            print("adding points for white check!")
-            posVal += 15
+            # print("adding points for white check!")
+            posVal += 5
 
         # print(blackPieces)
         for pieceType in blackPieces:
@@ -1030,9 +1040,15 @@ def aiMode_redrawAll(app, canvas):
         canvas.create_text(app.width / 2, app.height / 2, text = "game over!", 
                             font = "Arial 40", fill = "black")
         return
+    elif app.paused:
+        drawPauseMenu(app, canvas)
+        return
+
     drawBoard(app, canvas)
     drawPieces(app, canvas)
     aiMode_drawPlayerLabels(app, canvas)
+    drawPause(app, canvas)
+
     # canvas.create_oval(100, 100, 110, 110, fill = "blue")
     if app.activePiece != None:
         drawMoves(app, canvas)
@@ -1083,11 +1099,13 @@ def isValidTake(app, takeRow, takeCol, piece):
     if rowColInBounds(app, takeRow, takeCol) == False:
         return False
     # check if takeRow, takeCol is a ChessPiece of opposite color to piece
-    # print(f"checking if {str(piece)} can take ({takeRow},{takeCol})")
+    print(f"checking if {str(piece)} can take ({takeRow},{takeCol})")
     takeSquare = app.gameBoard[takeRow][takeCol]
+    
     if (isinstance(takeSquare, ChessPiece) == False):
         return False
-    elif (isinstance(takeSquare, ChessPiece) and 
+    print(f"{takeSquare} {takeSquare.color} and {piece} {piece.color} are same color: {takeSquare.color == piece.color}")
+    if (isinstance(takeSquare, ChessPiece) and 
           takeSquare.color == piece.color):
         return False
     # print("passed instance tests...", end = "")
@@ -1162,6 +1180,8 @@ def makeMove(app, row, col):
         oppColor = getOpposingColor(app, app.activePiece)
         if isChecked(app, oppColor):
             app.checked = oppColor
+            print(f"{oppColor} is checked!")
+            print(f"{isMated(app, oppColor)}")
             if isMated(app, oppColor):
                 # print("setting gameOver to True...")
                 app.gameOver = True
@@ -1199,7 +1219,10 @@ def takePiece(app, row, col):
         oppColor = getOpposingColor(app, app.activePiece)
         if isChecked(app, oppColor):
             app.checked = oppColor
+            print(f"{oppColor} is checked!")
+            print(f"{isMated(app, oppColor)}")
             if isMated(app, oppColor):
+                
                 # print("setting gameOver to True...")
                 app.gameOver = True
                 return
@@ -1254,77 +1277,62 @@ def getCheckedAndPieces(app, color):
     return (checkingPieces, checked)
 
 def isMated(app, color):
-    # print("checking for mate...", end = "")
+    print(f"checking if {color} is mated...", end = "")
+    input()
+    # king = eval(f"app.{color}Pieces['K'].pop()")
+    # eval(f"app.{color}Pieces['K'].add(king)")
+    # kingRow, kingCol = king.row, king.col
 
-    king = eval(f"app.{color}Pieces['K'].pop()")
-    eval(f"app.{color}Pieces['K'].add(king)")
-    kingRow, kingCol = king.row, king.col
+    # for drow, dcol in king.posMoves:
+    #     newKing = king.copy()
+    #     newKing.row += drow
+    #     newKing.col += dcol
 
-    for drow, dcol in king.posMoves:
-        newKing = king.copy()
-        newKing.row += drow
-        newKing.col += dcol
-
-        if isValidMove(app, newKing.row, newKing.col, king) == False:
-            continue
+    #     if isValidMove(app, newKing.row, newKing.col, king) == False:
+    #         continue
         
-        eval(f"app.{color}Pieces['K'].pop()")
-        eval(f"app.{color}Pieces['K'].add(newKing)")
-        if isChecked(app, color) == False:
-            eval(f"app.{color}Pieces['K'].pop()")
-            eval(f"app.{color}Pieces['K'].add(king)")
-            # print(f"king has move {newKing.row}, {newKing.col}")
-            return False
-        eval(f"app.{color}Pieces['K'].pop()")
-        eval(f"app.{color}Pieces['K'].add(king)")
+    #     eval(f"app.{color}Pieces['K'].pop()")
+    #     eval(f"app.{color}Pieces['K'].add(newKing)")
+    #     if isChecked(app, color) == False:
+    #         eval(f"app.{color}Pieces['K'].pop()")
+    #         eval(f"app.{color}Pieces['K'].add(king)")
+    #         print(f"king has move {newKing.row}, {newKing.col}")
+    #         return False
+    #     eval(f"app.{color}Pieces['K'].pop()")
+    #     eval(f"app.{color}Pieces['K'].add(king)")
 
     # print("no king moves...")
-    # input()
+    # # input()
 
-    checkingPieces = getCheckingPieces(app, color) # get pieces that are checking the king!
-    for pieceType in eval(f"app.{color}Pieces"):
-        for piece in eval(f"app.{color}Pieces[pieceType]"):
-            for checkingPiece in checkingPieces:
-                if isValidTake(app, checkingPiece.row, 
-                                             checkingPiece.col, piece):
-                    return False
+    # checkingPieces = getCheckingPieces(app, color) # get pieces that are checking the king!
+    # for pieceType in eval(f"app.{color}Pieces"):
+    #     for piece in eval(f"app.{color}Pieces[pieceType]"):
+    #         for checkingPiece in checkingPieces:
+    #             if isValidTake(app, checkingPiece.row, 
+    #                                          checkingPiece.col, piece):
+    #                 print(f"{piece} take {checkingPiece.row}, {checkingPiece.col} exists!")
+    #                 return False
     # print("no take moves...", end = "")
 
-    if (len(checkingPieces) == 1) and (isinstance(checkingPieces[0], Knight)):
-        # print("Mate by Knight!")
-        return True
+    # if (len(checkingPieces) == 1) and (isinstance(checkingPieces[0], Knight)):
+    #     # print("Mate by Knight!")
+    #     return True
 
     for pieceType in eval(f"app.{color}Pieces"):
         for piece in eval(f"app.{color}Pieces[pieceType]"):
-            # print(f"testing {piece}")
-            # input()
-            pieceRow, pieceCol = piece.row, piece.col
-            for checkingPiece in checkingPieces:
-                dRow, dCol = (checkingPiece.row - kingRow), (checkingPiece.col - kingCol)
-                dist = math.sqrt(dRow ** 2 + dCol ** 2)
-                # print(f"dRow, dCol: {dRow}, {dCol}, dist: {dist}")
-                unitDRow, unitDCol = math.ceil(dRow / dist), math.ceil(dCol / dist)
-                if dRow / dist < 0:
-                    unitDRow = -math.ceil(abs(dRow/dist))
-                if dCol / dist < 0:
-                    unitDCol = -math.ceil(abs(dCol/dist))
-                tempRow, tempCol = kingRow, kingCol
-                while tempRow != checkingPiece.row or tempCol != checkingPiece.col:
-                    # print(f"tempRow, tempCol: {tempRow}, {tempCol}")
-                    # print(f"pieceRow, pieceCol: {pieceRow}, {pieceCol}")
-                    # input()
-                    if (piece.hasMove(tempRow, tempCol)
-                        and attemptUndoCheck(app, tempRow, tempCol, 
-                                                      piece)):
-                        # print("returning false!")
-                        return False
-                    tempRow += unitDRow
-                    tempCol += unitDCol
+            print(f"    checking {piece} at ({piece.row}, {piece.col}) moves...")
+            print(f"    getting validMoves...")
+            validMoves = getValidMoves(app, piece)
+            print(f"    getting takeMoves...")
+            validTakes = getValidTakes(app, piece)
+            if (validMoves != set() or validTakes != set()):
+                print(f"{piece} at {piece.row}, {piece.col} has {validMoves} or {validTakes}")
+                return False
             # print("made through while loop")
 
-    # print("no block moves...", end = "")
+    print("no moves...", end = "")
     # input()
-    # print("mate!")   
+    print("mate!")   
     return True
 
 # returns True if move successfully undoes check
@@ -1403,10 +1411,34 @@ def attemptUndoCheck(app, tempRow, tempCol, piece):
 ########################
 
 def gameMode_mousePressed(app, event):
-    if app.gameOver == True:
+    if app.gameOver:
+        return
+    x, y = event.x, event.y
+
+    if app.paused: 
+        # quit pressed
+        if (x > app.quitX - app.pauseButtonsWidth
+           and x < app.quitX + app.pauseButtonsWidth
+           and y > app.quitY - app.pauseButtonsHeight
+           and y < app.quitY + app.pauseButtonsHeight):
+           app.paused = False
+           app.mode = "homeScreenMode"
+           appStarted(app)
+        # resume pressed
+        elif (x > app.resumeX - app.pauseButtonsWidth
+              and x < app.resumeX + app.pauseButtonsWidth
+              and y > app.resumeY - app.pauseButtonsHeight
+              and y < app.resumeY + app.pauseButtonsHeight):
+            app.paused = False
         return
 
-    x, y = event.x, event.y
+    # pause menu pressed
+    if (x > app.pauseX and y > app.pauseY 
+        and x < app.pauseX + app.pauseWidth 
+        and y < app.pauseY + app.pauseWidth):
+        app.paused = True
+        return
+
     if inBoard(app, x, y) == False:
         return
     row, col = getRowCol(app, x, y)
@@ -1441,7 +1473,7 @@ def gameMode_mousePressed(app, event):
     else: # user clicked on an empty space
         # print(f"empty space clicked! {app.activePiece}")
         if app.activePiece != None:
-            print("attempting to make move...")
+            # print("attempting to make move...")
             # print(app.activePiece, isValidMove(app, row, col))
             makeMove(app, row, col)
     # print(app.gameBoard)
@@ -1461,9 +1493,14 @@ def gameMode_redrawAll(app, canvas):
         canvas.create_text(app.width / 2, app.height / 2, text = "game over!", 
                             font = "Arial 40", fill = "black")
         return
+    elif app.paused:
+        drawPauseMenu(app, canvas)
+        return
+        
     drawBoard(app, canvas)
     drawPieces(app, canvas)
-    # canvas.create_oval(100, 100, 110, 110, fill = "blue")
+    drawPause(app, canvas)
+
     if app.activePiece != None:
         drawMoves(app, canvas)
     if app.checked != None:
@@ -1474,6 +1511,9 @@ def gameMode_redrawAll(app, canvas):
 #################################################
 # GENERAL CONTROLS
 #################################################
+# draws pause symbol
+def drawPause(app, canvas):
+    pass
 
 # draw chess game board
 def drawBoard(app, canvas):
@@ -1505,31 +1545,6 @@ def drawCheck(app, canvas):
                        text = f"{app.checked} check!", font = "Arial 20",
                        fill = "black")
 
-# returns set of valid moves for given piece
-def getValidMoves(app, piece):
-    posMoves = piece.posMoves
-    currRow, currCol = piece.row, piece.col
-    validMoves = set()
-    for (dRow, dCol) in posMoves:
-        moveRow, moveCol = currRow + dRow, currCol + dCol
-        # print(f"{moveRow}, {moveCol}: {attemptUndoCheck(app, moveRow, moveCol, app.activePiece)}")
-        if (isValidMove(app, moveRow, moveCol, app.activePiece)):
-            # and attemptUndoCheck(app, moveRow, moveCol, app.activePiece))
-            validMoves.add((moveRow, moveCol))
-    return validMoves
-
-# returns set of valid take moves for given piece
-def getValidTakes(app, piece):
-    posTakes = piece.takeMoves
-    currRow, currCol = piece.row, piece.col
-    validTakes = set()
-    for (dRow, dCol) in posTakes:
-        moveRow, moveCol = currRow + dRow, currCol + dCol
-        if (isValidTake(app, moveRow, moveCol, app.activePiece)):
-            # and attemptUndoCheck(app, moveRow, moveCol, app.activePiece) == False):
-            validTakes.add((moveRow, moveCol))
-    return validTakes
-
 # draws player's avaliable moves on canvas
 def drawMoves(app, canvas):
     for (moveRow, moveCol) in app.validMoves:
@@ -1545,6 +1560,68 @@ def drawMoves(app, canvas):
         canvas.create_oval(x - app.moveDotR, y - app.moveDotR,
                                x + app.moveDotR, y + app.moveDotR,
                                fill = app.takeDotColor)
+
+def drawPause(app, canvas):
+    canvas.create_rectangle(app.pauseX, app.pauseY, 
+                            app.pauseX + app.pauseWidth, 
+                            app.pauseY + app.pauseWidth,
+                            fill = "white", width = app.pauseButtonLineWidth)
+    canvas.create_line(app.leftPauseX, app.leftPauseY,
+                       app.leftPauseX, app.leftPauseY + app.pauseSignHeight,
+                       width = app.pauseButtonLineWidth)
+    canvas.create_line(app.rightPauseX, app.rightPauseY,
+                       app.rightPauseX, app.rightPauseY + app.pauseSignHeight,
+                       width = app.pauseButtonLineWidth)
+
+def drawPauseMenu(app, canvas):
+    canvas.create_text(app.pausedTextX, app.pausedTextY,
+                       text = "Pause Menu", font = "Arial 40 bold",
+                       fill = "black", anchor = "n")
+    canvas.create_rectangle(app.resumeX - app.pauseButtonsWidth, 
+                            app.resumeY - app.pauseButtonsHeight,
+                            app.resumeX + app.pauseButtonsWidth, 
+                            app.resumeY + app.pauseButtonsHeight,
+                            width = app.squareOutlineWidth,
+                            fill = "tan")
+    canvas.create_text(app.resumeX, app.resumeY, text = "Resume",
+                       font = "Arial 25", fill = "black")
+
+    canvas.create_rectangle(app.quitX - app.pauseButtonsWidth, 
+                            app.quitY - app.pauseButtonsHeight,
+                            app.quitX + app.pauseButtonsWidth, 
+                            app.quitY + app.pauseButtonsHeight,
+                            width = app.squareOutlineWidth,
+                            fill = "tan")
+    canvas.create_text(app.quitX, app.quitY, text = "Quit",
+                       font = "Arial 25", fill = "black")
+        
+
+
+# returns set of valid moves for given piece
+def getValidMoves(app, piece):
+    posMoves = piece.posMoves
+    currRow, currCol = piece.row, piece.col
+    validMoves = set()
+    for (dRow, dCol) in posMoves:
+        moveRow, moveCol = currRow + dRow, currCol + dCol
+        # print(f"{moveRow}, {moveCol}: {attemptUndoCheck(app, moveRow, moveCol, app.activePiece)}")
+        if (isValidMove(app, moveRow, moveCol, piece)):
+            # and attemptUndoCheck(app, moveRow, moveCol, app.activePiece))
+            validMoves.add((moveRow, moveCol))
+    return validMoves
+
+# returns set of valid take moves for given piece
+def getValidTakes(app, piece):
+    posTakes = piece.takeMoves
+    currRow, currCol = piece.row, piece.col
+    validTakes = set()
+    for (dRow, dCol) in posTakes:
+        moveRow, moveCol = currRow + dRow, currCol + dCol
+        if (isValidTake(app, moveRow, moveCol, piece)):
+            # and attemptUndoCheck(app, moveRow, moveCol, app.activePiece) == False):
+            print(f"GameBoard (take) at {moveRow}, {moveCol}: {app.gameBoard[moveRow][moveCol]}")
+            validTakes.add((moveRow, moveCol))
+    return validTakes
 
 # returns opposite color to piece given
 def getOpposingColor(app, piece):
@@ -1650,6 +1727,28 @@ def initializeBoard(app):
             app.blackPieces["Q"] = {bQueen}
             app.blackPieces["K"] = {bKing}
 
+# initiate variables related to pause button and menu
+def initPauseButtonVars(app):
+    app.paused = False
+    app.pauseMargin = 10
+    app.pauseWidth = 30
+    app.pauseButtonLineWidth = 3
+    app.pauseX, app.pauseY = app.width - app.margin + app.pauseMargin, app.pauseMargin
+    app.pauseSignHeight = 20
+    app.leftPauseX, app.rightPauseX = app.pauseX + app.pauseMargin, app.pauseX + (app.pauseWidth - app.pauseMargin)
+    app.leftPauseY = app.rightPauseY = app.pauseY + (app.pauseMargin / 2)
+
+    # buttons in pause menu
+    app.pausedTextX, app.pausedTextY = app.width / 2, app.height * (1/4)
+    
+    app.pauseButtonsWidth, app.pauseButtonsHeight = 100, 30
+
+    app.resumeX = app.width / 2
+    app.resumeY = app.height * (7/16)
+
+    app.quitX = app.width / 2
+    app.quitY = app.height * (3/5)
+
 def initiateHomeScreenVariables(app):
     app.buttonWidth, app.buttonHeight = 100, 30
     app.chessAITextY = app.height * (1/4)
@@ -1662,7 +1761,7 @@ def appStarted(app):
     initiateHomeScreenVariables(app)
 
     # board-related variables
-    app.margin = 30
+    app.margin = 50
     app.rows, app.cols = 8, 8
     app.squareSize = (app.width - (2 * app.margin)) / 8
     app.squareOutlineWidth = 5
@@ -1694,8 +1793,9 @@ def appStarted(app):
 
     app.gameBoard = [[0] * 8 for i in range(8)]
     initializeBoard(app)
+    initPauseButtonVars(app)
         
-        
+
 def redrawAll(app, canvas):
 
     # getting image from app.images
