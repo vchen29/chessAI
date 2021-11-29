@@ -15,13 +15,13 @@ import random
 #################################################
 
 class ChessPiece(object):
-    def __init__(self, row, col, color):
+    def __init__(self, row, col, color, moved = False):
         self.row = row
         self.col = col
         self.color = color
         self.hashables = (self.row, self.col, self.color)
 
-        self.moved = False
+        self.moved = moved
         self.posMoves = set()
         self.takeMoves = self.posMoves
         self.value = 0
@@ -36,10 +36,10 @@ class ChessPiece(object):
         return (takeRow, takeCol) in self.takeMoves
 
     def copy(self):
-        return type(self)(self.row, self.col, self.color)
+        return type(self)(self.row, self.col, self.color, self.moved)
         
 class Pawn(ChessPiece):
-    def __init__(self, row, col, color):
+    def __init__(self, row, col, color, moved = False):
         super().__init__(row, col, color)
 
         if self.color == "white":
@@ -55,7 +55,7 @@ class Pawn(ChessPiece):
         return f"P"
 
 class Rook(ChessPiece):
-    def __init__(self, row, col, color):
+    def __init__(self, row, col, color, moved = False):
         super().__init__(row, col, color)
 
         vertMoves = {(0, i) for i in range(-7,8) if i != 0}
@@ -69,7 +69,7 @@ class Rook(ChessPiece):
         return f"R"
 
 class Bishop(ChessPiece):
-    def __init__(self, row, col, color):
+    def __init__(self, row, col, color, moved = False):
         super().__init__(row, col, color)
 
         neMoves = {(-i, i) for i in range(1,8)}
@@ -92,7 +92,7 @@ class Knight(ChessPiece):
                     continue
                 moves.add((drow, dcol))
 
-    def __init__(self, row, col, color):
+    def __init__(self, row, col, color, moved = False):
         super().__init__(row, col, color)
 
         for drow in {-2, -1, 1, 2}:
@@ -110,7 +110,7 @@ class Knight(ChessPiece):
 class King(ChessPiece):
     castleMoves = {(0, -2), (0, 2)}
 
-    def __init__(self, row, col, color):
+    def __init__(self, row, col, color, moved = False):
         super().__init__(row, col, color)
 
         for r in {-1, 0, 1}:
@@ -126,7 +126,7 @@ class King(ChessPiece):
         return f"K"
 
 class Queen(ChessPiece):
-    def __init__(self, row, col, color):
+    def __init__(self, row, col, color, moved = False):
         super().__init__(row, col, color)
 
         neMoves = {(-i, i) for i in range(1,8)}
@@ -298,27 +298,29 @@ def aiMode_isValidMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc)
     moveRow, moveCol = moveLoc[0], moveLoc[1]
 
     if rowColInBounds(app, moveRow, moveCol) == False:
-        # print("finishing isValidMove.")
         return False
+
     moveSquare = gameBoard[moveRow][moveCol]
     if (isinstance(moveSquare, ChessPiece)):
-        # print("finishing isValidMove.")
         return False
 
     currRow, currCol = piece.row, piece.col
     dRow, dCol = (moveRow - currRow), (moveCol - currCol)
 
-    if (dRow, dCol) not in piece.posMoves:
+    if ((dRow, dCol) not in piece.posMoves
+        or rowColInBounds(app, moveRow, moveCol) == False):
         # print("finishing isValidMove.")
         return False
 
+    kingChecked = aiMode_isChecked(app, whitePieces, blackPieces, gameBoard, piece.color == "white")
+    if type(piece) == King and kingChecked and (dRow, dCol) in King.castleMoves:
+        return False
+
     hasNoBlockingPieces = aiMode_checkBlockingPieces(app, gameBoard, piece, moveLoc)
-    if hasNoBlockingPieces:
-        isChecked = aiMode_attemptUndoCheck(app, whitePieces, blackPieces, gameBoard, piece, moveLoc)
-        # print("finishing isValidMove.")
-        return hasNoBlockingPieces and isChecked
+    isStillChecked = aiMode_attemptUndoCheck(app, whitePieces, blackPieces, gameBoard, piece, moveLoc)
+    if hasNoBlockingPieces and isStillChecked:
+        return True
     else:
-        # print("finishing isValidMove.")
         return False
 
 # returns True if proposed move is a valid take move for piece
@@ -357,23 +359,81 @@ def aiMode_isValidTake(app, whitePieces, blackPieces, gameBoard, piece, moveLoc)
         # print("finishing isValidTake.")
         return False
 
-
+# applies move to inputted whitePieces and blackPieces (used for minimax algorithm to test moves)
 def aiMode_makeMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc):
-    # print("running makeMove...")
     oldRow, oldCol = piece.row, piece.col
-    # oldMoved = piece.moved
     if aiMode_isValidMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc):
-        # print('is valid move!')
         row, col = moveLoc[0], moveLoc[1]
         gameBoard[oldRow][oldCol] = 0
         eval(f"{piece.color}Pieces[str(piece)].remove(piece)")
 
-        piece.row, piece.col = row, col
+        oldMovedState = piece.moved
         piece.moved = True
+
+        dRow, dCol = row - piece.row, col - piece.col
+        isCastlingMove = False
+        castleDCol = None
+        if type(piece) == King and (dRow, dCol) in King.castleMoves:
+            print(f"King {piece.row} {piece.col} to {row}, {col} is castling move!")
+            isCastlingMove = True
+            castleDCol = dCol
+        
+        # removes pawn double-move/castle move if piece is a pawn/king respectively
+        if oldMovedState != True and type(piece) == Pawn:
+            if piece.color == "white":
+                piece.posMoves.remove((-2, 0))
+            else:
+                piece.posMoves.remove((2, 0))
+        elif oldMovedState != True and type(piece) == King:
+            for move in King.castleMoves:
+                if move in piece.posMoves:
+                    piece.posMoves.remove(move)
+        elif oldMovedState != True and type(piece) == Rook:
+            print(f"\nRook at {piece.row}, {piece.col} moved to {moveLoc}, oldMoved: {oldMovedState}")
+            print(gameBoard)
+            color = piece.color
+            king = eval(f"{color}Pieces['K'].pop()")
+            if king.moved == False:
+                print(f"king loc: {king.row}, {king.col}")
+                dRow, dCol = piece.row - king.row, piece.col - king.col
+                print(f"curr dRow, dCol: {dRow}, {dCol}", end = "")
+
+                dRow, dCol = dRow, (abs(dCol) // dCol) * 2
+                print(f"modded dRow, dCol: {dRow}, {dCol}")
+                print(f"king posMoves: {king.posMoves}")
+                king.posMoves.remove((dRow, dCol))
+            eval(f"{color}Pieces['K'].add(king)")
+
+        piece.row, piece.col = row, col
 
         gameBoard[row][col] = piece
         eval(f"{piece.color}Pieces[str(piece)].add(piece)")
-    # print("finished makeMove.")
+        for item in eval(f"{piece.color}Pieces['R']"):
+            print(f"Rook: at {item.row}, {item.col} has moved: {item.moved}")
+        # move respective rook to castle
+        if isCastlingMove:
+            rookSearchDCol = abs(castleDCol) // castleDCol
+            tempRow, tempCol = piece.row, piece.col + rookSearchDCol
+            rook = None
+            for item in eval(f"{piece.color}Pieces['R']"):
+                print(f"Rook at {item.row}, {item.col} exists")
+            while rook == None:
+                if type(gameBoard[tempRow][tempCol]) == Rook:
+                    rook = gameBoard[tempRow][tempCol]
+                    print(f"Rook at {tempRow}, {tempCol} is castling rook")
+                    gameBoard[tempRow][tempCol] = 0
+                    for item in eval(f"{rook.color}Pieces['R']"):
+                        if (item.row, item.col) == (rook.row, rook.col):
+                            rook = item
+                            break
+                    eval(f"{rook.color}Pieces['R'].remove(rook)")
+                tempCol += rookSearchDCol
+            rookDMove = rookSearchDCol * (-1)
+            rook.col = piece.col + rookDMove
+            rook.moved = True
+            gameBoard[rook.row][rook.col] = rook
+            eval(f"{rook.color}Pieces['R'].add(rook)")
+
     return (whitePieces, blackPieces, gameBoard)
 
 # do I need makeMove and takePiece as separate..?
@@ -387,9 +447,28 @@ def aiMode_takePiece(app, whitePieces, blackPieces, gameBoard, piece, takeLoc):
         gameBoard[oldRow][oldCol] = 0
         eval(f"{piece.color}Pieces[str(piece)].remove(piece)")
 
+        oldMovedState = piece.moved
         piece.row, piece.col = row, col
-        # piece.moved = True
+        piece.moved = True
         
+        if oldMovedState != True and type(piece) == Pawn:
+            if piece.color == "white":
+                piece.posMoves.remove((-2, 0))
+            else:
+                piece.posMoves.remove((2, 0))
+        elif oldMovedState != True and type(piece) == King:
+            for move in King.castleMoves:
+                if move in piece.posMoves:
+                    piece.posMoves.remove(move)
+        elif oldMovedState != True and type(piece) == Rook:
+            color = piece.color
+            king = eval(f"{color}Pieces['K'].pop()")
+            if king.moved == False:
+                dRow, dCol = piece.row - king.row, piece.col - king.col
+                dRow, dCol = dRow, (abs(dCol) // dCol) * 2
+                king.posMoves.remove((dRow, dCol))
+            eval(f"{color}Pieces['K'].add(king)")
+            
         takenPiece = gameBoard[row][col]
         eval(f"{takenPiece.color}Pieces[str(takenPiece)].remove(takenPiece)")
 
@@ -689,11 +768,13 @@ def aiMode_getMinimaxBestMove(app, whitePieces, blackPieces, gameBoard, isMaxPla
 
         if aiMode_isValidMove(app, whiteCopy, blackCopy, gameBoardCopy,
                               pieceCopy, moveLoc):
-            aiMode_makeMove(app, whiteCopy, blackCopy, gameBoardCopy,
-                            pieceCopy, moveLoc)
+            whiteCopy, blackCopy, gameBoardCopy = aiMode_makeMove(app, whiteCopy, 
+                                                                  blackCopy, gameBoardCopy,
+                                                                  pieceCopy, moveLoc)
         else: # isValidTake == True
-            aiMode_takePiece(app, whiteCopy, blackCopy, gameBoardCopy,
-                            pieceCopy, moveLoc)
+            whiteCopy, blackCopy, gameBoardCopy = aiMode_takePiece(app, whiteCopy, 
+                                                                   blackCopy, gameBoardCopy,
+                                                                   pieceCopy, moveLoc)
 
         moveVal = aiMode_minimax(app, whiteCopy, blackCopy, gameBoardCopy, depth, isMaxPlayerTurn)
         if bestMove == None or moveVal < minVal:
@@ -824,16 +905,20 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
                                              gameBoardCopy, pieceCopy, moveLoc)
             isValidTake = aiMode_isValidTake(app, whiteCopy, blackCopy, 
                                              gameBoardCopy, pieceCopy, moveLoc)
-
-            if isValidMove or isValidTake:
+            
+            # newState = (whiteCopy, blackCopy, gameBoardCopy)
+            if isValidMove:
                 newState = aiMode_makeMove(app, whiteCopy, blackCopy, 
                                            gameBoardCopy, pieceCopy, moveLoc)
+                
+            elif isValidTake:
+                newState = aiMode_takePiece(app, whiteCopy, blackCopy, 
+                                           gameBoardCopy, pieceCopy, moveLoc)
+            newWhitePieces, newBlackPieces, newGameBoard = newState[0], newState[1], newState[2]
+            eval = aiMode_minimax(app, newWhitePieces, newBlackPieces, newGameBoard, 
+                                    depth - 1, not isMaxPlayerTurn)  
+            maxEval = max(maxEval, eval)
 
-                newWhitePieces, newBlackPieces, newGameBoard = newState[0], newState[1], newState[2]
-                eval = aiMode_minimax(app, newWhitePieces, newBlackPieces, newGameBoard, 
-                                      depth - 1, not isMaxPlayerTurn)  
-                maxEval = max(maxEval, eval)
-                # *** UNDO MOVE HERE! ***    
         return maxEval
         
     else:    
@@ -1052,7 +1137,6 @@ def isValidMove(app, moveRow, moveCol, piece):
     if hasNoBlockingPieces and isStillChecked:
         return True
     else:
-        # print("fails here")
         return False
 
 def isValidTake(app, takeRow, takeCol, piece):
@@ -1122,7 +1206,6 @@ def checkBlockingPieces(app, moveRow, moveCol, piece):
 # if move is valid, make move and adjust set of same-color pieces accordingly
 def makeMove(app, row, col):
     oldRow, oldCol = app.activePiece.row, app.activePiece.col
-    oldMoved = app.activePiece.moved
     # print(f"isValidMove: {isValidMove(app, row, col, app.activePiece)}")
     if (isValidMove(app, row, col, app.activePiece)):
         # remove piece from gameBoard/app.colorPieces and modify its values
@@ -1155,7 +1238,7 @@ def makeMove(app, row, col):
             king = eval(f"app.{color}Pieces['K'].pop()")
             if king.moved == False:
                 dRow, dCol = app.activePiece.row - king.row, app.activePiece.col - king.col
-                dRow, dCol = dRow, (dCol // dCol) * 2
+                dRow, dCol = dRow, (abs(dCol) // dCol) * 2
                 king.posMoves.remove((dRow, dCol))
             eval(f"app.{color}Pieces['K'].add(king)")
 
@@ -1168,7 +1251,6 @@ def makeMove(app, row, col):
         # move respective rook to castle
         if isCastlingMove:
             rookSearchDCol = abs(castleDCol) // castleDCol
-            print(rookSearchDCol)
             tempRow, tempCol = app.activePiece.row, app.activePiece.col + rookSearchDCol
             rook = None
             while rook == None:
@@ -1208,8 +1290,7 @@ def takePiece(app, row, col):
     oldRow, oldCol = app.activePiece.row, app.activePiece.col
     oldMoved = app.activePiece.moved
 
-    if (isValidTake(app, row, col, app.activePiece) and
-        attemptUndoCheck(app, row, col, app.activePiece)):
+    if (isValidTake(app, row, col, app.activePiece)):
         app.gameBoard[oldRow][oldCol] = 0
         eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].remove(app.activePiece)")
 
@@ -1223,7 +1304,16 @@ def takePiece(app, row, col):
                 app.activePiece.posMoves.remove((2, 0))
         elif oldMovedState != True and type(app.activePiece) == King:
             for move in King.castleMoves:
-                app.activePiece.posMoves.remove(move)
+                if move in app.activePiece.posMoves:
+                    app.activePiece.posMoves.remove(move)
+        elif oldMovedState != True and type(app.activePiece) == Rook:
+            color = app.activePiece.color
+            king = eval(f"app.{color}Pieces['K'].pop()")
+            if king.moved == False:
+                dRow, dCol = app.activePiece.row - king.row, app.activePiece.col - king.col
+                dRow, dCol = dRow, (abs(dCol) // dCol) * 2
+                king.posMoves.remove((dRow, dCol))
+            eval(f"app.{color}Pieces['K'].add(king)")
 
         takenPiece = app.gameBoard[row][col]
         eval(f"app.{takenPiece.color}Pieces[str(takenPiece)].remove(takenPiece)")
