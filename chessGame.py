@@ -145,7 +145,6 @@ class Queen(ChessPiece):
 # HOME SCREEN
 #################################################
 def homeScreenMode_drawScreen(app, canvas):
-    
     canvas.create_rectangle(0, 0, app.width, app.height,
                             fill = "tan")
     canvas.create_text(app.width / 2, app.chessAITextY,
@@ -154,7 +153,7 @@ def homeScreenMode_drawScreen(app, canvas):
                             app.gameModeButtonY - app.buttonHeight,
                             app.twoPlayerButtonX + app.buttonWidth,
                             app.gameModeButtonY + app.buttonHeight,
-                            fill = "brown")
+                            width = app.buttonOutlineWidth, fill = "brown")
     canvas.create_text(app.twoPlayerButtonX, app.gameModeButtonY,
                        text = "Two Players", fill = "black",
                        font = "Helvetica 25")
@@ -162,7 +161,7 @@ def homeScreenMode_drawScreen(app, canvas):
                             app.gameModeButtonY - app.buttonHeight,
                             app.aiModeButtonX + app.buttonWidth,
                             app.gameModeButtonY + app.buttonHeight,
-                            fill = "brown")
+                            width = app.buttonOutlineWidth, fill = "brown")
     canvas.create_text(app.aiModeButtonX, app.gameModeButtonY,
                        text = "AI Mode!", fill = "black",
                        font = "Helvetica 25")
@@ -989,9 +988,9 @@ def aiMode_makeAIPlayerMove(app):
 
 def aiMode_drawPlayerLabels(app, canvas):
     canvas.create_text(app.width / 2, app.height - app.margin / 2,
-                        text = "Player", fill = "black", font = "Arial 20")
+                        text = "Player", fill = "black", font = "Arial 20 bold")
     canvas.create_text(app.width / 2, app.margin / 2,
-                        text = "Computer", fill = "black", font = "Arial 20")
+                        text = "Computer", fill = "black", font = "Arial 20 bold")
 
 def aiMode_redrawAll(app, canvas):
     if app.gameOver:
@@ -1004,6 +1003,7 @@ def aiMode_redrawAll(app, canvas):
 
     drawBoard(app, canvas)
     drawPieces(app, canvas)
+    drawTakenPieces(app, canvas)
     aiMode_drawPlayerLabels(app, canvas)
     drawPause(app, canvas)
 
@@ -1169,7 +1169,7 @@ def takePiece(app, row, col):
         #     app.activePiece.posMoves.pop()
         takenPiece = app.gameBoard[row][col]
         eval(f"app.{takenPiece.color}Pieces[str(takenPiece)].remove(takenPiece)")
-        eval(f"app.{takenPiece.color}TakenPieces.add(takenPiece)")
+        eval(f"app.{takenPiece.color}TakenPieces[str(takenPiece)].add(takenPiece)")
 
         app.gameBoard[row][col] = app.activePiece
         eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].add(app.activePiece)")
@@ -1419,7 +1419,10 @@ def gameMode_redrawAll(app, canvas):
         
     drawBoard(app, canvas)
     drawPieces(app, canvas)
+    drawTakenPieces(app, canvas)
     drawPause(app, canvas)
+    drawPlayerLabels(app, canvas)
+    # drawPlayerLabels(app, canvas)
 
     if app.activePiece != None:
         drawMoves(app, canvas)
@@ -1431,16 +1434,57 @@ def gameMode_redrawAll(app, canvas):
 #################################################
 # GENERAL CONTROLS
 #################################################
-# draws pause symbol
+def drawPlayerLabels(app, canvas):
+    canvas.create_text(app.width / 2, app.height - app.margin / 2,
+                        text = "Player 1", fill = "black", font = "Arial 20 bold")
+    canvas.create_text(app.width / 2, app.margin / 2,
+                        text = "Player 2", fill = "black", font = "Arial 20 bold")
+                        
+def getNumberOfPieces(app, d):
+    numPieces = 0
+    for key in d:
+        for piece in d[key]:
+            numPieces += 1
+    return numPieces
+
 def drawTakenPieces(app, canvas):
     idx = 0
-    for piece in app.whiteTakenPieces:
-        canvas.create_text()
-        idx += 1
+    defaultPieceDict = {"P": set(), "B": set(), "N": set(), 
+                        "R": set(), "K": set(), "Q": set()}
+    if app.whiteTakenPieces != defaultPieceDict:
+        numWhiteTaken = getNumberOfPieces(app, app.whiteTakenPieces)
+        canvas.create_rectangle(app.width - app.margin + app.pauseMargin,
+                                app.margin,
+                                app.width - app.pauseMargin,
+                                app.margin + (app.margin / 2) * numWhiteTaken,
+                                fill = "tan", width = app.pauseButtonLineWidth)
+        for pieceType in ['P','N','B','R','Q']:
+            for piece in app.whiteTakenPieces[pieceType]:
+                x0, y0, x1, y1 = getDimensions(app, piece.row, piece.col)
+                canvas.create_text(app.width - (app.margin / 2),  
+                                app.margin * (5/4) + (app.margin / 2) * idx,
+                                text = str(piece), font = "Arial 15",
+                                fill = piece.color)
+                idx += 1
 
+    
     idx = 0
-    for piece in app.blackTakenPieces:
-        idx += 1
+    if app.blackTakenPieces != defaultPieceDict:
+        numBlackTaken = getNumberOfPieces(app, app.blackTakenPieces)
+        canvas.create_rectangle(app.pauseMargin,
+                                app.height - app.margin,
+                                app.margin - app.pauseMargin,
+                                app.height - app.margin - (app.margin / 2) * numBlackTaken,
+                                fill = "tan", width = app.pauseButtonLineWidth)
+        for pieceType in ['Q','R','B','N','P']:
+            for piece in app.blackTakenPieces[pieceType]:
+                x0, y0, x1, y1 = getDimensions(app, piece.row, piece.col)
+                canvas.create_text(app.margin / 2,
+                                (app.height - app.margin * (5/4)) - (app.margin / 2) * idx,
+                                text = str(piece), font = "Arial 15",
+                                fill = piece.color)
+                idx += 1
+
 
 # draw chess game board
 def drawBoard(app, canvas):
@@ -1461,6 +1505,7 @@ def drawBoard(app, canvas):
                             fill = app.boardColors[(app.activePiece.row + app.activePiece.col) % 2],
                             width = app.squareOutlineWidth - 2,
                             outline = "yellow")
+
 # draw pieces on game board
 def drawPieces(app, canvas):
     for pieceType in {'P', 'N', 'B', 'R', 'Q', 'K'}:
@@ -1513,6 +1558,8 @@ def drawPause(app, canvas):
                        width = app.pauseButtonLineWidth)
 
 def drawPauseMenu(app, canvas):
+    canvas.create_rectangle(0, 0, app.width, app.height,
+                            fill = "tan")
     canvas.create_text(app.pausedTextX, app.pausedTextY,
                        text = "Pause Menu", font = "Arial 40 bold",
                        fill = "black", anchor = "n")
@@ -1520,8 +1567,8 @@ def drawPauseMenu(app, canvas):
                             app.resumeY - app.pauseButtonsHeight,
                             app.resumeX + app.pauseButtonsWidth, 
                             app.resumeY + app.pauseButtonsHeight,
-                            width = app.squareOutlineWidth,
-                            fill = "tan")
+                            width = app.buttonOutlineWidth,
+                            fill = "brown")
     canvas.create_text(app.resumeX, app.resumeY, text = "Resume",
                        font = "Arial 25", fill = "black")
 
@@ -1529,8 +1576,8 @@ def drawPauseMenu(app, canvas):
                             app.quitY - app.pauseButtonsHeight,
                             app.quitX + app.pauseButtonsWidth, 
                             app.quitY + app.pauseButtonsHeight,
-                            width = app.squareOutlineWidth,
-                            fill = "tan")
+                            width = app.buttonOutlineWidth,
+                            fill = "brown")
     canvas.create_text(app.quitX, app.quitY, text = "Quit",
                        font = "Arial 25", fill = "black")
         
@@ -1695,6 +1742,7 @@ def initPauseButtonVars(app):
 
 def initiateHomeScreenVariables(app):
     app.buttonWidth, app.buttonHeight = 100, 30
+    app.buttonOutlineWidth = 4
     app.chessAITextY = app.height * (1/4)
     app.gameModeButtonY = app.height * (1/2)
     app.twoPlayerButtonX = app.width * (1/4)
@@ -1727,8 +1775,10 @@ def appStarted(app):
     app.playerToMoveIdx = 0
     app.players = ["white", "black"]
 
-    app.whiteTakenPieces = set()
-    app.blackTakenPieces = set()
+    app.whiteTakenPieces = {"P": set(), "B": set(), "N": set(), 
+                            "R": set(), "K": set(), "Q": set()}
+    app.blackTakenPieces = {"P": set(), "B": set(), "N": set(), 
+                            "R": set(), "K": set(), "Q": set()}
 
     app.checked = None
     app.gameOver = False
