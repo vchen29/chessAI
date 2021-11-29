@@ -43,10 +43,10 @@ class Pawn(ChessPiece):
         super().__init__(row, col, color)
 
         if self.color == "white":
-            self.posMoves = {(-1, 0)} # ignoring -2,0 for now
+            self.posMoves = {(-1, 0), (-2, 0)} # ignoring -2,0 for now
             self.takeMoves = {(-1, -1), (-1, 1)}
         else: # self.color == "black"
-            self.posMoves = {(1, 0)} # ignoring 2,0 for now
+            self.posMoves = {(1, 0), (2, 0)} # ignoring 2,0 for now
             self.takeMoves = {(1, -1), (1, 1)}
         
         self.value = 1
@@ -1123,14 +1123,20 @@ def makeMove(app, row, col):
     oldMoved = app.activePiece.moved
     # print(f"isValidMove: {isValidMove(app, row, col, app.activePiece)}")
     if (isValidMove(app, row, col, app.activePiece)):
-        # print('is valid move!')
+        # remove piece from gameBoard/app.colorPieces and modify its values
         app.gameBoard[oldRow][oldCol] = 0
         eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].remove(app.activePiece)")
 
         app.activePiece.row, app.activePiece.col = row, col
+        oldMovedState = app.activePiece.moved
         app.activePiece.moved = True
-        # if type(app.activePiece == Pawn): # remove pawn jumping option
-        #     app.activePiece.posMoves.pop()
+        if oldMovedState != True and type(app.activePiece) == Pawn:
+            if app.activePiece.color == "white":
+                app.activePiece.posMoves.remove((-2, 0))
+            else:
+                app.activePiece.posMoves.remove((2, 0))
+    
+        # add modified piece back to gameBoard and app.colorPieces
         app.gameBoard[row][col] = app.activePiece
         eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].add(app.activePiece)")
 
@@ -1145,6 +1151,7 @@ def makeMove(app, row, col):
                 return
         else:
             app.checked = None
+        
 
         app.activePiece = None
         app.validMoves = set()
@@ -1504,7 +1511,7 @@ def drawBoard(app, canvas):
     canvas.create_rectangle(x0, y0, x1, y1,
                             fill = app.boardColors[(app.activePiece.row + app.activePiece.col) % 2],
                             width = app.squareOutlineWidth - 2,
-                            outline = "yellow")
+                            outline = "gold")
 
 # draw pieces on game board
 def drawPieces(app, canvas):
@@ -1559,7 +1566,7 @@ def drawPause(app, canvas):
 
 def drawPauseMenu(app, canvas):
     canvas.create_rectangle(0, 0, app.width, app.height,
-                            fill = "tan")
+                            fill = "ivory3")
     canvas.create_text(app.pausedTextX, app.pausedTextY,
                        text = "Pause Menu", font = "Arial 40 bold",
                        fill = "black", anchor = "n")
@@ -1568,7 +1575,7 @@ def drawPauseMenu(app, canvas):
                             app.resumeX + app.pauseButtonsWidth, 
                             app.resumeY + app.pauseButtonsHeight,
                             width = app.buttonOutlineWidth,
-                            fill = "brown")
+                            fill = "tan")
     canvas.create_text(app.resumeX, app.resumeY, text = "Resume",
                        font = "Arial 25", fill = "black")
 
@@ -1577,7 +1584,7 @@ def drawPauseMenu(app, canvas):
                             app.quitX + app.pauseButtonsWidth, 
                             app.quitY + app.pauseButtonsHeight,
                             width = app.buttonOutlineWidth,
-                            fill = "brown")
+                            fill = "tan")
     canvas.create_text(app.quitX, app.quitY, text = "Quit",
                        font = "Arial 25", fill = "black")
         
