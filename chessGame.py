@@ -15,15 +15,15 @@ import random
 #################################################
 
 class ChessPiece(object):
-    def __init__(self, row, col, color, moved = False):
+    def __init__(self, row, col, color, moved = False, posMoves = set(), takeMoves = set()):
         self.row = row
         self.col = col
         self.color = color
         self.hashables = (self.row, self.col, self.color)
 
         self.moved = moved
-        self.posMoves = set()
-        self.takeMoves = self.posMoves
+        self.posMoves = posMoves
+        self.takeMoves = takeMoves
         self.value = 0
         
     def __hash__(self):
@@ -36,17 +36,23 @@ class ChessPiece(object):
         return (takeRow, takeCol) in self.takeMoves
 
     def copy(self):
-        return type(self)(self.row, self.col, self.color, self.moved)
+        return type(self)(self.row, self.col, self.color, self.moved, self.posMoves, self.takeMoves)
         
 class Pawn(ChessPiece):
-    def __init__(self, row, col, color, moved = False):
-        super().__init__(row, col, color)
+    def __init__(self, row, col, color, moved = False, posMoves = set(), takeMoves = set()):
+        super().__init__(row, col, color, moved, posMoves, takeMoves)
 
         if self.color == "white":
-            self.posMoves = {(-1, 0), (-2, 0)} # ignoring -2,0 for now
+            if moved:
+                self.posMoves = {(-1, 0)}
+            else:
+                self.posMoves = {(-1, 0), (-2, 0)}
             self.takeMoves = {(-1, -1), (-1, 1)}
         else: # self.color == "black"
-            self.posMoves = {(1, 0), (2, 0)} # ignoring 2,0 for now
+            if moved:
+                self.posMoves = {(1, 0)}
+            else:
+                self.posMoves = {(1, 0), (2, 0)}
             self.takeMoves = {(1, -1), (1, 1)}
         
         self.value = 1
@@ -55,8 +61,8 @@ class Pawn(ChessPiece):
         return f"P"
 
 class Rook(ChessPiece):
-    def __init__(self, row, col, color, moved = False):
-        super().__init__(row, col, color)
+    def __init__(self, row, col, color, moved = False, posMoves = set(), takeMoves = set()):
+        super().__init__(row, col, color, moved, posMoves, takeMoves)
 
         vertMoves = {(0, i) for i in range(-7,8) if i != 0}
         horMoves = {(i, 0) for i in range(-7,8) if i != 0}
@@ -69,8 +75,8 @@ class Rook(ChessPiece):
         return f"R"
 
 class Bishop(ChessPiece):
-    def __init__(self, row, col, color, moved = False):
-        super().__init__(row, col, color)
+    def __init__(self, row, col, color, moved = False, posMoves = set(), takeMoves = set()):
+        super().__init__(row, col, color, moved, posMoves, takeMoves)
 
         neMoves = {(-i, i) for i in range(1,8)}
         seMoves = {(i, i) for i in range(1,8)}
@@ -92,8 +98,8 @@ class Knight(ChessPiece):
                     continue
                 moves.add((drow, dcol))
 
-    def __init__(self, row, col, color, moved = False):
-        super().__init__(row, col, color)
+    def __init__(self, row, col, color, moved = False, posMoves = set(), takeMoves = set()):
+        super().__init__(row, col, color, moved, posMoves, takeMoves)
 
         for drow in {-2, -1, 1, 2}:
             for dcol in {-2, -1, 1, 2}:
@@ -110,15 +116,23 @@ class Knight(ChessPiece):
 class King(ChessPiece):
     castleMoves = {(0, -2), (0, 2)}
 
-    def __init__(self, row, col, color, moved = False):
-        super().__init__(row, col, color)
+    def __init__(self, row, col, color, moved = False, posMoves = set(), takeMoves = set()):
+        super().__init__(row, col, color, moved, posMoves, takeMoves)
 
-        for r in {-1, 0, 1}:
-            for c in {-1, 0, 1}:
-                if (r, c) != (0, 0):
-                    self.posMoves.add((r, c))
-        self.takeMoves = self.posMoves
-        self.posMoves = self.posMoves.union(self.castleMoves)
+        if self.posMoves == set():
+            for r in {-1, 0, 1}:
+                for c in {-1, 0, 1}:
+                    if (r, c) != (0, 0):
+                        self.posMoves.add((r, c))
+
+        if moved == False:
+            self.posMoves = self.posMoves.union(King.castleMoves)
+
+        if self.takeMoves == set():
+            for r in {-1, 0, 1}:
+                for c in {-1, 0, 1}:
+                    if (r, c) != (0, 0):
+                        self.takeMoves.add((r, c))
 
         self.value = 50
 
@@ -126,8 +140,8 @@ class King(ChessPiece):
         return f"K"
 
 class Queen(ChessPiece):
-    def __init__(self, row, col, color, moved = False):
-        super().__init__(row, col, color)
+    def __init__(self, row, col, color, moved = False, posMoves = set(), takeMoves = set()):
+        super().__init__(row, col, color, moved, posMoves, takeMoves)
 
         neMoves = {(-i, i) for i in range(1,8)}
         seMoves = {(i, i) for i in range(1,8)}
@@ -374,7 +388,7 @@ def aiMode_makeMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc):
         isCastlingMove = False
         castleDCol = None
         if type(piece) == King and (dRow, dCol) in King.castleMoves:
-            print(f"King {piece.row} {piece.col} to {row}, {col} is castling move!")
+            # print(f"King {piece.row} {piece.col} to {row}, {col} is castling move!")
             isCastlingMove = True
             castleDCol = dCol
         
@@ -389,18 +403,18 @@ def aiMode_makeMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc):
                 if move in piece.posMoves:
                     piece.posMoves.remove(move)
         elif oldMovedState != True and type(piece) == Rook:
-            print(f"\nRook at {piece.row}, {piece.col} moved to {moveLoc}, oldMoved: {oldMovedState}")
-            print(gameBoard)
+            # print(f"\nRook at {piece.row}, {piece.col} moved to {moveLoc}, oldMoved: {oldMovedState}")
+            # print(gameBoard)
             color = piece.color
             king = eval(f"{color}Pieces['K'].pop()")
             if king.moved == False:
-                print(f"king loc: {king.row}, {king.col}")
+                # print(f"king loc: {king.row}, {king.col}")
                 dRow, dCol = piece.row - king.row, piece.col - king.col
-                print(f"curr dRow, dCol: {dRow}, {dCol}", end = "")
+                # print(f"curr dRow, dCol: {dRow}, {dCol}", end = "")
 
                 dRow, dCol = dRow, (abs(dCol) // dCol) * 2
-                print(f"modded dRow, dCol: {dRow}, {dCol}")
-                print(f"king posMoves: {king.posMoves}")
+                # print(f"modded dRow, dCol: {dRow}, {dCol}")
+                # print(f"king posMoves: {king.posMoves}")
                 king.posMoves.remove((dRow, dCol))
             eval(f"{color}Pieces['K'].add(king)")
 
@@ -408,19 +422,20 @@ def aiMode_makeMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc):
 
         gameBoard[row][col] = piece
         eval(f"{piece.color}Pieces[str(piece)].add(piece)")
-        for item in eval(f"{piece.color}Pieces['R']"):
-            print(f"Rook: at {item.row}, {item.col} has moved: {item.moved}")
+        # for item in eval(f"{piece.color}Pieces['R']"):
+        #     print(f"Rook: at {item.row}, {item.col} has moved: {item.moved}")
+        
         # move respective rook to castle
         if isCastlingMove:
             rookSearchDCol = abs(castleDCol) // castleDCol
             tempRow, tempCol = piece.row, piece.col + rookSearchDCol
             rook = None
-            for item in eval(f"{piece.color}Pieces['R']"):
-                print(f"Rook at {item.row}, {item.col} exists")
+            # for item in eval(f"{piece.color}Pieces['R']"):
+            #     print(f"Rook at {item.row}, {item.col} exists")
             while rook == None:
                 if type(gameBoard[tempRow][tempCol]) == Rook:
                     rook = gameBoard[tempRow][tempCol]
-                    print(f"Rook at {tempRow}, {tempCol} is castling rook")
+                    # print(f"Rook at {tempRow}, {tempCol} is castling rook")
                     gameBoard[tempRow][tempCol] = 0
                     for item in eval(f"{rook.color}Pieces['R']"):
                         if (item.row, item.col) == (rook.row, rook.col):
@@ -470,6 +485,9 @@ def aiMode_takePiece(app, whitePieces, blackPieces, gameBoard, piece, takeLoc):
             eval(f"{color}Pieces['K'].add(king)")
             
         takenPiece = gameBoard[row][col]
+        for item in eval(f"{takenPiece.color}Pieces[str(takenPiece)]"):
+            if (item.row, item.col, item.moved) == (takenPiece.row, takenPiece.col, takenPiece.moved):
+                takenPiece = item
         eval(f"{takenPiece.color}Pieces[str(takenPiece)].remove(takenPiece)")
 
         gameBoard[row][col] = piece
@@ -577,75 +595,85 @@ def aiMode_attemptUndoCheck(app, whitePieces, blackPieces, gameBoard, piece, mov
             blackPiecesCopy[key] = blackPiecesCopy.get(key, set())
             blackPiecesCopy[key].add(item.copy())
 
+    gameBoardCopy = copyGameBoard(app, gameBoard)
+
     dRow, dCol = tempRow - piece.row, tempCol - piece.col
 
     if isinstance(tempBoardSq, ChessPiece) and (tempBoardSq.color != piece.color):
-        oppColorPiece = tempBoardSq
+        oppColorPiece = tempBoardSq.copy()
         # print(f"tempBoardSq {tempBoardSq}: ({tempBoardSq.row}, {tempBoardSq.col})", end = "")
         # keySet = eval(f"{oppColor}Pieces[str(tempBoardSq)]")
         # print(f"in: {tempBoardSq in keySet}")
 
-        if piece.hasTake(dRow, dCol):
+        if pieceCopy.hasTake(dRow, dCol):
             # print(f"{oppColor}Pieces: ", end = "")
             # for key in eval(f"{oppColor}Pieces"):
             #     for item in eval(f"{oppColor}Pieces[key]"):
             #         print(f"{item}: ({item.row},{item.col}) ", end = "")
             
-            for item in eval(f"{oppColor}Pieces[str(oppColorPiece)]"):
-                if item.row == oppColorPiece.row and item.col == oppColorPiece.col:
+            for item in eval(f"{oppColor}PiecesCopy[str(oppColorPiece)]"):
+                if (item.row, item.col) == (oppColorPiece.row, oppColorPiece.col):
                     oppColorPiece = item
-                    eval(f"{oppColor}Pieces[str(oppColorPiece)].remove(oppColorPiece)")
+                    eval(f"{oppColor}PiecesCopy[str(oppColorPiece)].remove(oppColorPiece)")
                     break
 
-            for item in eval(f"{color}Pieces[str(piece)]"):
-                if item.row == piece.row and item.col == piece.col:
-                    piece = item
-                    eval(f"{color}Pieces[str(piece)].remove(piece)")
+            for item in eval(f"{color}PiecesCopy[str(piece)]"):
+                if (item.row, item.col) == (piece.row, piece.col):
+                    pieceCopy = item
+                    eval(f"{color}PiecesCopy[str(piece)].remove(pieceCopy)")
                     break
 
-            gameBoard[tempRow][tempCol] = piece
-            gameBoard[piece.row][piece.col] = 0
+            gameBoardCopy[tempRow][tempCol] = piece
+            gameBoardCopy[piece.row][piece.col] = 0
 
             pieceCopy.row, pieceCopy.col = tempRow, tempCol
-            eval(f"{color}Pieces[str(pieceCopy)].add(pieceCopy)")
+            eval(f"{color}PiecesCopy[str(pieceCopy)].add(pieceCopy)")
 
             result = None
-            if aiMode_isChecked(app, whitePieces, blackPieces, gameBoard, piece.color == "white"):
+            if aiMode_isChecked(app, whitePiecesCopy, blackPiecesCopy, 
+                                gameBoardCopy, piece.color == "white"):
                 # print("move results in check!")
                 result = False
             else:
                 # print("move isn't check!")
                 result = True
             
-            gameBoard[tempRow][tempCol] = oppColorPiece
-            gameBoard[piece.row][piece.col] = piece
-            eval(f"{color}Pieces[str(pieceCopy)].remove(pieceCopy)")
-            eval(f"{color}Pieces[str(piece)].add(piece)")
-            eval(f"{oppColor}Pieces[str(oppColorPiece)].add(oppColorPiece)")
-            whitePieces = whitePiecesCopy
-            blackPieces = blackPiecesCopy
+            # gameBoardCopy[tempRow][tempCol] = oppColorPiece
+            # gameBoardCopy[piece.row][piece.col] = piece
+            # eval(f"{color}Pieces[str(pieceCopy)].remove(pieceCopy)")
+            # eval(f"{color}Pieces[str(piece)].add(piece)")
+            # eval(f"{oppColor}Pieces[str(oppColorPiece)].add(oppColorPiece)")
+            # whitePieces = whitePiecesCopy
+            # blackPieces = blackPiecesCopy
             return result
     else:
-        if piece.hasMove(dRow, dCol): 
-            gameBoard[tempRow][tempCol] = piece
-            gameBoard[piece.row][piece.col] = 0
-            eval(f"{color}Pieces[str(piece)].remove(piece)")
+        if pieceCopy.hasMove(dRow, dCol): 
+            gameBoardCopy[tempRow][tempCol] = piece
+            gameBoardCopy[piece.row][piece.col] = 0
+
+            for item in eval(f"{pieceCopy.color}PiecesCopy[str(pieceCopy)]"):
+                if (item.row, item.col, item.moved) == (pieceCopy.row, pieceCopy.col, pieceCopy.moved):
+                    pieceCopy = item
+                    eval(f"{color}PiecesCopy[str(piece)].remove(pieceCopy)")
+                    break
 
             pieceCopy.row, pieceCopy.col = tempRow, tempCol
-            eval(f"{color}Pieces[str(pieceCopy)].add(pieceCopy)")
+            eval(f"{color}PiecesCopy[str(pieceCopy)].add(pieceCopy)")
             result = None
-            if aiMode_isChecked(app, whitePieces, blackPieces, gameBoard, piece.color == "white"):
+
+            if aiMode_isChecked(app, whitePiecesCopy, blackPiecesCopy, 
+                                gameBoardCopy, pieceCopy.color == "white"):
                 result = False
             else:
                 result = True
 
-            gameBoard[tempRow][tempCol] = 0
-            gameBoard[piece.row][piece.col] = piece
+            # gameBoard[tempRow][tempCol] = 0
+            # gameBoard[piece.row][piece.col] = piece
 
-            eval(f"{color}Pieces[str(pieceCopy)].remove(pieceCopy)")
-            eval(f"{color}Pieces[str(piece)].add(piece)")
-            whitePieces = whitePiecesCopy
-            blackPieces = blackPiecesCopy
+            # eval(f"{color}Pieces[str(pieceCopy)].remove(pieceCopy)")
+            # eval(f"{color}Pieces[str(piece)].add(piece)")
+            # whitePieces = whitePiecesCopy
+            # blackPieces = blackPiecesCopy
             return result
     return False
 
@@ -752,7 +780,7 @@ def aiMode_getMinimaxBestMove(app, whitePieces, blackPieces, gameBoard, isMaxPla
                 itemCopy = item.copy()
                 whiteCopy[key] = whiteCopy.get(key, set())
                 whiteCopy[key].add(itemCopy)
-                if (item.color, item.row, item.col) == (piece.color, piece.row, piece.col):
+                if (item.color, item.row, item.col, item.moved) == (piece.color, piece.row, piece.col, piece.moved):
                     pieceCopy = itemCopy
 
         blackCopy = dict()
@@ -761,18 +789,18 @@ def aiMode_getMinimaxBestMove(app, whitePieces, blackPieces, gameBoard, isMaxPla
                 itemCopy = item.copy()
                 blackCopy[key] = blackCopy.get(key, set())
                 blackCopy[key].add(itemCopy)
-                if (item.color, item.row, item.col) == (piece.color, piece.row, piece.col):
+                if (item.color, item.row, item.col, item.moved) == (piece.color, piece.row, piece.col, item.moved):
                     pieceCopy = itemCopy
 
         gameBoardCopy = copyGameBoard(app, gameBoard)
 
         if aiMode_isValidMove(app, whiteCopy, blackCopy, gameBoardCopy,
                               pieceCopy, moveLoc):
-            whiteCopy, blackCopy, gameBoardCopy = aiMode_makeMove(app, whiteCopy, 
+            aiMode_makeMove(app, whiteCopy, 
                                                                   blackCopy, gameBoardCopy,
                                                                   pieceCopy, moveLoc)
         else: # isValidTake == True
-            whiteCopy, blackCopy, gameBoardCopy = aiMode_takePiece(app, whiteCopy, 
+            aiMode_takePiece(app, whiteCopy, 
                                                                    blackCopy, gameBoardCopy,
                                                                    pieceCopy, moveLoc)
 
