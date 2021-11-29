@@ -1127,7 +1127,13 @@ def makeMove(app, row, col):
         oldMovedState = app.activePiece.moved
         app.activePiece.moved = True
 
-        
+        # if move is a castle move
+        dRow, dCol = row - app.activePiece.row, col - app.activePiece.col
+        isCastlingMove = False
+        castleDCol = None
+        if type(app.activePiece) == King and (dRow, dCol) in King.castleMoves:
+            isCastlingMove = True
+            castleDCol = dCol
 
         if oldMovedState != True and type(app.activePiece) == Pawn:
             if app.activePiece.color == "white":
@@ -1150,10 +1156,31 @@ def makeMove(app, row, col):
         app.activePiece.row, app.activePiece.col = row, col
 
         # add modified piece back to gameBoard and app.colorPieces
-        
         app.gameBoard[row][col] = app.activePiece
         eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].add(app.activePiece)")
 
+        if isCastlingMove:
+            # get rook to castle with
+            
+            rookSearchDCol = abs(castleDCol) // castleDCol
+            print(rookSearchDCol)
+            tempRow, tempCol = app.activePiece.row, app.activePiece.col + rookSearchDCol
+            rook = None
+            while rook == None:
+                if type(app.gameBoard[tempRow][tempCol]) == Rook:
+                    rook = app.gameBoard[tempRow][tempCol]
+                    app.gameBoard[tempRow][tempCol] = 0
+                    eval(f"app.{rook.color}Pieces['R'].remove(rook)")
+                tempCol += rookSearchDCol
+            rookDMove = rookSearchDCol * (-1)
+            rook.col = app.activePiece.col + rookDMove
+            rook.moved = True
+            app.gameBoard[rook.row][rook.col] = rook
+            eval(f"app.{rook.color}Pieces['R'].add(rook)")
+
+            # adjust rook values
+            # 3) re-add rook to gameBoard and app pieces
+            pass
         oppColor = getOpposingColor(app, app.activePiece)
         if isChecked(app, oppColor):
             app.checked = oppColor
