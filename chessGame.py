@@ -108,6 +108,8 @@ class Knight(ChessPiece):
         return f"N"
 
 class King(ChessPiece):
+    castleMoves = {(0, -2), (0, 2)}
+
     def __init__(self, row, col, color):
         super().__init__(row, col, color)
 
@@ -116,6 +118,7 @@ class King(ChessPiece):
                 if (r, c) != (0, 0):
                     self.posMoves.add((r, c))
         self.takeMoves = self.posMoves
+        self.posMoves = self.posMoves.union(self.castleMoves)
 
         self.value = 50
 
@@ -830,10 +833,7 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
                 eval = aiMode_minimax(app, newWhitePieces, newBlackPieces, newGameBoard, 
                                       depth - 1, not isMaxPlayerTurn)  
                 maxEval = max(maxEval, eval)
-                # *** UNDO MOVE HERE! ***   
-            else:
-                pass
-                # print('     not a valid move/take!')  
+                # *** UNDO MOVE HERE! ***    
         return maxEval
         
     else:    
@@ -1040,14 +1040,11 @@ def isValidMove(app, moveRow, moveCol, piece):
     if ((dRow, dCol) not in piece.posMoves 
         or rowColInBounds(app, moveRow, moveCol) == False):
         return False
-    # elif: (if move the piece and it leaves your piece vulnerable to check)
-    #     pass
-    # print("... passed all tests so far")
+    
     hasNoBlockingPieces = checkBlockingPieces(app, moveRow, moveCol, piece)
     isChecked = attemptUndoCheck(app, moveRow, moveCol, piece)
     # print(hasNoBlockingPieces, isChecked)
     if hasNoBlockingPieces and isChecked:
-        # create separate takePiece condition after isValidTake is written
         return True
     else:
         # print("fails here")
@@ -1127,16 +1124,33 @@ def makeMove(app, row, col):
         app.gameBoard[oldRow][oldCol] = 0
         eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].remove(app.activePiece)")
 
-        app.activePiece.row, app.activePiece.col = row, col
         oldMovedState = app.activePiece.moved
         app.activePiece.moved = True
+
+        
+
         if oldMovedState != True and type(app.activePiece) == Pawn:
             if app.activePiece.color == "white":
                 app.activePiece.posMoves.remove((-2, 0))
             else:
                 app.activePiece.posMoves.remove((2, 0))
-    
+        elif oldMovedState != True and type(app.activePiece) == King:
+            for move in King.castleMoves:
+                if move in app.activePiece.posMoves:
+                    app.activePiece.posMoves.remove(move)
+        elif oldMovedState != True and type(app.activePiece) == Rook:
+            color = app.activePiece.color
+            king = eval(f"app.{color}Pieces['K'].pop()")
+            if king.moved == False:
+                dRow, dCol = app.activePiece.row - king.row, app.activePiece.col - king.col
+                dRow, dCol = dRow, (dCol // dCol) * 2
+                king.posMoves.remove((dRow, dCol))
+            eval(f"app.{color}Pieces['K'].add(king)")
+
+        app.activePiece.row, app.activePiece.col = row, col
+
         # add modified piece back to gameBoard and app.colorPieces
+        
         app.gameBoard[row][col] = app.activePiece
         eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].add(app.activePiece)")
 
@@ -1170,10 +1184,18 @@ def takePiece(app, row, col):
         app.gameBoard[oldRow][oldCol] = 0
         eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].remove(app.activePiece)")
 
+        oldMovedState = app.activePiece.moved
         app.activePiece.row, app.activePiece.col = row, col
         app.activePiece.moved = True
-        # if type(app.activePiece == Pawn): # remove pawn jumping option
-        #     app.activePiece.posMoves.pop()
+        if oldMovedState != True and type(app.activePiece) == Pawn:
+            if app.activePiece.color == "white":
+                app.activePiece.posMoves.remove((-2, 0))
+            else:
+                app.activePiece.posMoves.remove((2, 0))
+        elif oldMovedState != True and type(app.activePiece) == King:
+            for move in King.castleMoves:
+                app.activePiece.posMoves.remove(move)
+
         takenPiece = app.gameBoard[row][col]
         eval(f"app.{takenPiece.color}Pieces[str(takenPiece)].remove(takenPiece)")
         eval(f"app.{takenPiece.color}TakenPieces[str(takenPiece)].add(takenPiece)")
@@ -1400,8 +1422,8 @@ def gameMode_mousePressed(app, event):
     else: # user clicked on an empty space
         # print(f"empty space clicked! {app.activePiece}")
         if app.activePiece != None:
-            # print("attempting to make move...")
-            # print(app.activePiece, isValidMove(app, row, col))
+            if type(app.activePiece) == King:
+                pass
             makeMove(app, row, col)
     # print(app.gameBoard)
     # print(app.activePiece)
