@@ -239,10 +239,16 @@ def aiMode_timerFired(app):
         # aiMode_makeAIPlayerMove(app)
 
 def aiMode_mousePressed(app, event):
+    x, y = event.x, event.y
     if app.gameOver:
+        if (x > app.okButtonX - app.okButtonWidth and 
+            x < app.okButtonX + app.okButtonWidth and
+            y > app.okButtonY - app.okButtonHeight and 
+            y < app.okButtonY + app.okButtonHeight):
+            app.mode = "homeScreenMode"
+            appStarted(app)
         return
 
-    x, y = event.x, event.y
     if app.paused: 
         # quit pressed
         if (x > app.quitX - app.pauseButtonsWidth
@@ -796,13 +802,11 @@ def aiMode_getMinimaxBestMove(app, whitePieces, blackPieces, gameBoard, isMaxPla
 
         if aiMode_isValidMove(app, whiteCopy, blackCopy, gameBoardCopy,
                               pieceCopy, moveLoc):
-            aiMode_makeMove(app, whiteCopy, 
-                                                                  blackCopy, gameBoardCopy,
-                                                                  pieceCopy, moveLoc)
+            aiMode_makeMove(app, whiteCopy, blackCopy, gameBoardCopy,
+                            pieceCopy, moveLoc)
         else: # isValidTake == True
-            aiMode_takePiece(app, whiteCopy, 
-                                                                   blackCopy, gameBoardCopy,
-                                                                   pieceCopy, moveLoc)
+            aiMode_takePiece(app, whiteCopy, blackCopy, gameBoardCopy,
+                             pieceCopy, moveLoc)
 
         moveVal = aiMode_minimax(app, whiteCopy, blackCopy, gameBoardCopy, depth, isMaxPlayerTurn)
         if bestMove == None or moveVal < minVal:
@@ -1107,8 +1111,7 @@ def aiMode_drawPlayerLabels(app, canvas):
 
 def aiMode_redrawAll(app, canvas):
     if app.gameOver:
-        canvas.create_text(app.width / 2, app.height / 2, text = "game over!", 
-                            font = "Arial 40", fill = "black")
+        drawGameOverScreen(app, canvas)
         return
     elif app.paused:
         drawPauseMenu(app, canvas)
@@ -1296,8 +1299,8 @@ def makeMove(app, row, col):
         oppColor = getOpposingColor(app, app.activePiece)
         if isChecked(app, oppColor):
             app.checked = oppColor
-            print(f"{oppColor} is checked!")
-            print(f"{isMated(app, oppColor)}")
+            # print(f"{oppColor} is checked!")
+            # print(f"{isMated(app, oppColor)}")
             if isMated(app, oppColor):
                 # print("setting gameOver to True...")
                 app.gameOver = True
@@ -1507,9 +1510,15 @@ def attemptUndoCheck(app, tempRow, tempCol, piece):
 ########################
 
 def gameMode_mousePressed(app, event):
-    if app.gameOver:
-        return
     x, y = event.x, event.y
+    if app.gameOver:
+        if (x > app.okButtonX - app.okButtonWidth and 
+            x < app.okButtonX + app.okButtonWidth and
+            y > app.okButtonY - app.okButtonHeight and 
+            y < app.okButtonY + app.okButtonHeight):
+            app.mode = "homeScreenMode"
+            appStarted(app)
+        return
 
     if app.paused: 
         # quit pressed
@@ -1586,8 +1595,7 @@ def gameMode_keyPressed(app, event):
 ########################
 def gameMode_redrawAll(app, canvas):
     if app.gameOver:
-        canvas.create_text(app.width / 2, app.height / 2, text = "game over!", 
-                            font = "Arial 40", fill = "black")
+        drawGameOverScreen(app, canvas)
         return
     elif app.paused:
         drawPauseMenu(app, canvas)
@@ -1916,6 +1924,36 @@ def initPauseButtonVars(app):
     app.quitX = app.width / 2
     app.quitY = app.height * (3/5)
 
+def drawGameOverScreen(app, canvas):
+    canvas.create_rectangle(0, 0, app.width, app.height,
+                            fill = app.gameOverScreenColor)
+    canvas.create_text(app.width / 2, app.height * (6/16), text = "Game Over!", 
+                            font = "Arial 40 bold", fill = "black")
+
+    winningColor = None
+    if app.checked == "white":
+        winningColor = "black"
+    else:
+        winningColor = "white"
+    canvas.create_text(app.width / 2, app.height * (1/2), text = f"{winningColor} wins!", 
+                            font = "Arial 25", fill = "black")
+    
+    canvas.create_rectangle(app.okButtonX - app.okButtonWidth, 
+                            app.okButtonY - app.okButtonHeight,
+                            app.okButtonX + app.okButtonWidth, 
+                            app.okButtonY + app.okButtonHeight,
+                            width = app.okButtonLineWidth, fill = "tan")
+    canvas.create_text(app.okButtonX, app.okButtonY, text = "OK",
+                       font = "Arial 20")
+    
+def initGameOverVars(app):
+    app.gameOverScreenColor = "grey"
+    app.okButtonX = app.width / 2
+    app.okButtonY = app.height * (3/5)
+    app.okButtonWidth = 50
+    app.okButtonHeight = 15
+    app.okButtonLineWidth = 3
+    
 def initiateHomeScreenVariables(app):
     app.buttonWidth, app.buttonHeight = 100, 30
     app.buttonOutlineWidth = 4
@@ -1962,6 +2000,7 @@ def appStarted(app):
     app.gameBoard = [[0] * 8 for i in range(8)]
     initializeBoard(app)
     initPauseButtonVars(app)
+    initGameOverVars(app)
         
 
 def redrawAll(app, canvas):
