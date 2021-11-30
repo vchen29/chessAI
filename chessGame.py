@@ -169,6 +169,23 @@ class Queen(ChessPiece):
 # HOME SCREEN
 #################################################
 
+def homeScreenMode_mouseMoved(app, event):
+    x, y = event.x, event.y
+    app.twoPlayerButtonColor = app.normalButtonColor
+    app.aiModeButtonColor = app.normalButtonColor
+    # if hovering inside 2 player button
+    if (x >= (app.twoPlayerButtonX - app.buttonWidth) 
+        and x <= (app.twoPlayerButtonX + app.buttonWidth)
+        and y >= (app.gameModeButtonY - app.buttonHeight) 
+        and y <= (app.gameModeButtonY + app.buttonHeight)):
+        app.twoPlayerButtonColor = app.hoverColor
+    # if hovering inside AI mode button
+    elif (x >= (app.aiModeButtonX - app.buttonWidth) 
+          and x <= (app.aiModeButtonX + app.buttonWidth)
+          and y >= (app.gameModeButtonY - app.buttonHeight) 
+          and y <= (app.gameModeButtonY + app.buttonHeight)):
+          app.aiModeButtonColor = app.hoverColor        
+
 # mouse pressed function responsible for home screen functionalities
 def homeScreenMode_mousePressed(app, event):
     x, y = event.x, event.y
@@ -190,27 +207,40 @@ def homeScreenMode_drawScreen(app, canvas):
     canvas.create_rectangle(0, 0, app.width, app.height,
                             fill = "tan")
     canvas.create_text(app.width / 2, app.chessAITextY,
-                       text = "Chess AI", font = ("Comic Sans MS", 70))
+                       text = "Chess AI", font = (app.font, 70))
     canvas.create_rectangle(app.twoPlayerButtonX - app.buttonWidth, 
                             app.gameModeButtonY - app.buttonHeight,
                             app.twoPlayerButtonX + app.buttonWidth,
                             app.gameModeButtonY + app.buttonHeight,
-                            width = app.buttonOutlineWidth, fill = "brown")
+                            width = app.buttonOutlineWidth, fill = app.twoPlayerButtonColor)
     canvas.create_text(app.twoPlayerButtonX, app.gameModeButtonY,
                        text = "Two Players", fill = "black",
-                       font = ("Comic Sans MS",  25))
+                       font = (app.font,  20))
     canvas.create_rectangle(app.aiModeButtonX - app.buttonWidth, 
                             app.gameModeButtonY - app.buttonHeight,
                             app.aiModeButtonX + app.buttonWidth,
                             app.gameModeButtonY + app.buttonHeight,
-                            width = app.buttonOutlineWidth, fill = "brown")
+                            width = app.buttonOutlineWidth, fill = app.aiModeButtonColor)
     canvas.create_text(app.aiModeButtonX, app.gameModeButtonY,
-                       text = "AI Mode!", fill = "black",
-                       font = ("Comic Sans MS",  25))
+                       text = "AI Mode", fill = "black",
+                       font = (app.font,  20))
 
+def homeScreenMode_keyPressed(app, event):
+    key = event.key
+    if key == "g":
+        if app.fancyGraphics == True:
+            app.font = app.normalFont
+        else:
+            app.font = app.fancyFont
+        app.fancyGraphics = not app.fancyGraphics
+            
 # draw all home screen features
 def homeScreenMode_redrawAll(app, canvas):
     homeScreenMode_drawScreen(app, canvas)
+    if app.fancyGraphics == True:
+        canvas.create_image(125, 450, image= ImageTk.PhotoImage(app.frogImg))
+        canvas.create_text(app.width / 2, app.height * (3/4), text = "graphic design is my passion",
+                        font = (app.font,  25))
     
 
 #################################################
@@ -238,6 +268,45 @@ def aiMode_timerFired(app):
         else: # take move
             takePiece(app, row, col)
 
+def aiMode_mouseMoved(app, event):    
+    x, y = event.x, event.y
+    app.resumeButtonColor = app.normalButtonColor
+    app.quitButtonColor = app.normalButtonColor
+    app.pauseButtonColor = app.normalButtonColor
+    if app.paused:
+        # if hovering inside resume button
+        if (x > app.resumeX - app.pauseButtonsWidth
+            and x < app.resumeX + app.pauseButtonsWidth
+            and y > app.resumeY - app.pauseButtonsHeight
+            and y < app.resumeY + app.pauseButtonsHeight):
+            app.resumeButtonColor = app.hoverColor
+        # if hovering inside quit button
+        elif (x > app.quitX - app.pauseButtonsWidth
+              and x < app.quitX + app.pauseButtonsWidth
+              and y > app.quitY - app.pauseButtonsHeight
+              and y < app.quitY + app.pauseButtonsHeight):
+            app.quitButtonColor = app.hoverColor
+    elif app.gameOver:
+        if (x > app.okButtonX - app.okButtonWidth and 
+            x < app.okButtonX + app.okButtonWidth and
+            y > app.okButtonY - app.okButtonHeight and 
+            y < app.okButtonY + app.okButtonHeight):
+            app.okButtonColor = app.hoverColor
+    elif (x > app.pauseX and y > app.pauseY 
+        and x < app.pauseX + app.pauseWidth 
+        and y < app.pauseY + app.pauseWidth):
+        app.pauseButtonColor = app.hoverColor
+
+
+def aiMode_keyPressed(app, event):
+    key = event.key
+    if key == "g":
+        if app.fancyGraphics == True:
+            app.font = app.normalFont
+        else:
+            app.font = app.fancyFont
+        app.fancyGraphics = not app.fancyGraphics
+
 # mouse pressed function responsible for moving pieces and game functionalities
 def aiMode_mousePressed(app, event):
     x, y = event.x, event.y
@@ -249,7 +318,7 @@ def aiMode_mousePressed(app, event):
             y > app.okButtonY - app.okButtonHeight and 
             y < app.okButtonY + app.okButtonHeight):
             app.mode = "homeScreenMode"
-            appStarted(app)
+            restartGame(app)
         return
     
     # only responds to pause menu buttons
@@ -261,7 +330,7 @@ def aiMode_mousePressed(app, event):
            and y < app.quitY + app.pauseButtonsHeight):
            app.paused = False
            app.mode = "homeScreenMode"
-           appStarted(app)
+           restartGame(app)
         # resume pressed
         elif (x > app.resumeX - app.pauseButtonsWidth
               and x < app.resumeX + app.pauseButtonsWidth
@@ -475,7 +544,6 @@ def aiMode_takePiece(app, whitePieces, blackPieces, gameBoard, piece, takeLoc):
         eval(f"{piece.color}Pieces[str(piece)].remove(piece)")
 
         oldMovedState = piece.moved
-        piece.row, piece.col = row, col
         piece.moved = True
         
         # removes pawn double-move/castle move if piece is a pawn/king or rook respectively
@@ -503,6 +571,7 @@ def aiMode_takePiece(app, whitePieces, blackPieces, gameBoard, piece, takeLoc):
                 takenPiece = item
         eval(f"{takenPiece.color}Pieces[str(takenPiece)].remove(takenPiece)")
 
+        piece.row, piece.col = row, col
         gameBoard[row][col] = piece
         eval(f"{piece.color}Pieces[str(piece)].add(piece)")
 
@@ -749,14 +818,11 @@ def aiMode_getMinimaxBestMove(app, whitePieces, blackPieces, gameBoard, isMaxPla
         else: # isValidTake == True
             aiMode_takePiece(app, whiteCopy, blackCopy, gameBoardCopy,
                              pieceCopy, moveLoc)
-
-        moveVal = aiMode_minimax(app, whiteCopy, blackCopy, gameBoardCopy, depth, isMaxPlayerTurn)
+        moveVal = aiMode_minimax(app, whiteCopy, blackCopy, gameBoardCopy, depth, True)
         if bestMove == None or moveVal < minVal:
             minVal = moveVal
             bestPiece = piece
             bestMove = (moveRow, moveCol)
-            # print(f"New Best Move (depth: {depth}): {piece} to {moveLoc}")
-    # input()
     return bestPiece, bestMove
 
 # general pseudocode structure: https://www.javatpoint.com/mini-max-algorithm-in-ai
@@ -800,20 +866,10 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
             blackCopy = copyPieces(app, blackPieces)
             pieceCopy = None
 
-            if piece.color == "white":
-                whitePieces[str(piece)].remove(piece)
-                pieceCopy = piece.copy()
-                whiteCopy[str(piece)] = {pieceCopy}
-
-            else:    
-                blackPieces.remove(piece)
-                pieceCopy = piece.copy()
-                blackCopy[str(piece)] = {pieceCopy}
-            
-            if piece.color == "white":
-                whitePieces[str(piece)].add(piece)
-            else:
-                blackPieces[str(piece)].add(piece)
+            whitePieces[str(piece)].remove(piece)
+            pieceCopy = piece.copy()
+            whiteCopy[str(piece)] = {pieceCopy}
+            whitePieces[str(piece)].add(piece)
         
             gameBoardCopy = copyGameBoard(app, gameBoard)
 
@@ -844,21 +900,10 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
             blackCopy = copyPieces(app, blackPieces)
             pieceCopy = None
 
-            # i think i can delete this entire initial color == "white" section
-            if piece.color == "white":
-                whitePieces[str(piece)].remove(piece)
-                pieceCopy = piece.copy()
-                whiteCopy[str(piece)] = {pieceCopy}
-
-            else:
-                blackPieces[str(piece)].remove(piece)
-                pieceCopy = piece.copy()
-                blackCopy[str(pieceCopy)] = {pieceCopy}
-
-            if piece.color == "white":
-                whitePieces[str(piece)].add(piece)
-            else:
-                blackPieces[str(piece)].add(piece)
+            blackPieces[str(piece)].remove(piece)
+            pieceCopy = piece.copy()
+            blackCopy[str(pieceCopy)] = {pieceCopy}
+            blackPieces[str(piece)].add(piece)
 
             gameBoardCopy = copyGameBoard(app, gameBoard)
 
@@ -885,9 +930,9 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
 # draws player labels for aiMode
 def aiMode_drawPlayerLabels(app, canvas):
     canvas.create_text(app.width / 2, app.height - app.margin / 2,
-                        text = "Player", fill = "black", font = ("Comic Sans MS",  20, "bold"))
+                        text = "Player", fill = "black", font = (app.font,  20))
     canvas.create_text(app.width / 2, app.margin / 2,
-                        text = "Computer", fill = "black", font = ("Comic Sans MS",  20, "bold"))
+                        text = "Computer", fill = "black", font = (app.font,  20))
 
 # draws all components of aiMode
 def aiMode_redrawAll(app, canvas):
@@ -918,6 +963,34 @@ def twoPlayer_timerFired(app):
     # maybe use to display "time-passed" clock for each player
     pass
 
+def twoPlayer_mouseMoved(app, event):    
+    x, y = event.x, event.y
+    app.resumeButtonColor = app.normalButtonColor
+    app.quitButtonColor = app.normalButtonColor
+    app.pauseButtonColor = app.normalButtonColor
+    if app.paused:
+        # if hovering inside resume button
+        if (x > app.resumeX - app.pauseButtonsWidth
+            and x < app.resumeX + app.pauseButtonsWidth
+            and y > app.resumeY - app.pauseButtonsHeight
+            and y < app.resumeY + app.pauseButtonsHeight):
+            app.resumeButtonColor = app.hoverColor
+        # if hovering inside quit button
+        elif (x > app.quitX - app.pauseButtonsWidth
+              and x < app.quitX + app.pauseButtonsWidth
+              and y > app.quitY - app.pauseButtonsHeight
+              and y < app.quitY + app.pauseButtonsHeight):
+            app.quitButtonColor = app.hoverColor
+    elif app.gameOver:
+        if (x > app.okButtonX - app.okButtonWidth and 
+            x < app.okButtonX + app.okButtonWidth and
+            y > app.okButtonY - app.okButtonHeight and 
+            y < app.okButtonY + app.okButtonHeight):
+            app.okButtonColor = app.hoverColor
+    elif (x > app.pauseX and y > app.pauseY 
+        and x < app.pauseX + app.pauseWidth 
+        and y < app.pauseY + app.pauseWidth):
+        app.pauseButtonColor = app.hoverColor
 ########################
 # LOGIC FUNCTIONS
 ######################## 
@@ -1272,7 +1345,7 @@ def twoPlayer_mousePressed(app, event):
             y > app.okButtonY - app.okButtonHeight and 
             y < app.okButtonY + app.okButtonHeight):
             app.mode = "homeScreenMode"
-            appStarted(app)
+            restartGame(app)
         return
 
     # if pause menu is open, respond only to pause menu buttons
@@ -1284,7 +1357,7 @@ def twoPlayer_mousePressed(app, event):
            and y < app.quitY + app.pauseButtonsHeight):
            app.paused = False
            app.mode = "homeScreenMode"
-           appStarted(app)
+           restartGame(app)
         # resume pressed
         elif (x > app.resumeX - app.pauseButtonsWidth
               and x < app.resumeX + app.pauseButtonsWidth
@@ -1334,9 +1407,13 @@ def twoPlayer_mousePressed(app, event):
             makeMove(app, row, col)
 
 def twoPlayer_keyPressed(app, event):
-    # if (event.key == 'p'):
-    #     app.mode = 'pauseMode'
-    pass
+    key = event.key
+    if key == "g":
+        if app.fancyGraphics == True:
+            app.font = app.normalFont
+        else:
+            app.font = app.fancyFont
+        app.fancyGraphics = not app.fancyGraphics
 
 
 ########################
@@ -1346,9 +1423,9 @@ def twoPlayer_keyPressed(app, event):
 # draws player labels
 def drawPlayerLabels(app, canvas):
     canvas.create_text(app.width / 2, app.height - app.margin / 2,
-                        text = "Player 1", fill = "black", font = ("Comic Sans MS",  20, "bold"))
+                        text = "Player 1", fill = "black", font = (app.font,  20))
     canvas.create_text(app.width / 2, app.margin / 2,
-                        text = "Player 2", fill = "black", font = ("Comic Sans MS",  20, "bold"))
+                        text = "Player 2", fill = "black", font = (app.font,  20))
 
 # draws taken pieces on side of the chess board                     
 def drawTakenPieces(app, canvas):
@@ -1367,7 +1444,7 @@ def drawTakenPieces(app, canvas):
                 x0, y0, x1, y1 = getDimensions(app, piece.row, piece.col)
                 canvas.create_text(app.width - (app.margin / 2),  
                                 app.margin * (5/4) + (app.margin / 2) * idx,
-                                text = str(piece), font = ("Comic Sans MS",  15),
+                                text = str(piece), font = (app.font, 15),
                                 fill = piece.color)
                 idx += 1
 
@@ -1385,7 +1462,7 @@ def drawTakenPieces(app, canvas):
                 x0, y0, x1, y1 = getDimensions(app, piece.row, piece.col)
                 canvas.create_text(app.margin / 2,
                                 (app.height - app.margin * (5/4)) - (app.margin / 2) * idx,
-                                text = str(piece), font = ("Comic Sans MS",  15),
+                                text = str(piece), font = (app.font,  15),
                                 fill = piece.color)
                 idx += 1
 
@@ -1419,7 +1496,7 @@ def drawPieces(app, canvas):
         for piece in whiteTypePieces.union(blackTypePieces):
             x0, y0, x1, y1 = getDimensions(app, piece.row, piece.col)
             canvas.create_text((x0 + x1) / 2, (y0 + y1) / 2,
-                                    text = str(piece), font = ("Comic Sans MS",  20),
+                                    text = str(piece), font = (app.font,  20),
                                     fill = piece.color)
 
 # draws "check" message at top for whichever color is checked
@@ -1431,7 +1508,7 @@ def drawCheck(app, canvas):
                             fill = "yellow")
     canvas.create_text(app.pauseMargin + app.buttonWidth / 2, 
                        app.pauseMargin + app.buttonHeight / 2, 
-                       text = f"{app.checked} checked!", font = ("Comic Sans MS",  10),
+                       text = f"{app.checked} checked!", font = (app.font,  10),
                        fill = "black")
 
 # draws player's avaliable moves and takes
@@ -1455,7 +1532,7 @@ def drawPause(app, canvas):
     canvas.create_rectangle(app.pauseX, app.pauseY, 
                             app.pauseX + app.pauseWidth, 
                             app.pauseY + app.pauseWidth,
-                            fill = "white", width = app.pauseButtonLineWidth)
+                            fill = app.pauseButtonColor, width = app.pauseButtonLineWidth)
     canvas.create_line(app.leftPauseX, app.leftPauseY,
                        app.leftPauseX, app.leftPauseY + app.pauseSignHeight,
                        width = app.pauseButtonLineWidth)
@@ -1466,34 +1543,34 @@ def drawPause(app, canvas):
 # draws pause menu
 def drawPauseMenu(app, canvas):
     canvas.create_rectangle(0, 0, app.width, app.height,
-                            fill = "ivory3")
+                            fill = app.menuBackground)
     canvas.create_text(app.pausedTextX, app.pausedTextY,
-                       text = "Pause Menu", font = ("Comic Sans MS",  40, "bold"),
+                       text = "Pause Menu", font = (app.font,  40),
                        fill = "black", anchor = "n")
     canvas.create_rectangle(app.resumeX - app.pauseButtonsWidth, 
                             app.resumeY - app.pauseButtonsHeight,
                             app.resumeX + app.pauseButtonsWidth, 
                             app.resumeY + app.pauseButtonsHeight,
                             width = app.buttonOutlineWidth,
-                            fill = "tan")
+                            fill = app.resumeButtonColor)
     canvas.create_text(app.resumeX, app.resumeY, text = "Resume",
-                       font = ("Comic Sans MS",  25), fill = "black")
+                       font = (app.font,  25), fill = "black")
 
     canvas.create_rectangle(app.quitX - app.pauseButtonsWidth, 
                             app.quitY - app.pauseButtonsHeight,
                             app.quitX + app.pauseButtonsWidth, 
                             app.quitY + app.pauseButtonsHeight,
                             width = app.buttonOutlineWidth,
-                            fill = "tan")
+                            fill = app.quitButtonColor)
     canvas.create_text(app.quitX, app.quitY, text = "Quit",
-                       font = ("Comic Sans MS",  25), fill = "black")
+                       font = (app.font,  25), fill = "black")
 
 # draws game over screen      
 def drawGameOverScreen(app, canvas):
     canvas.create_rectangle(0, 0, app.width, app.height,
                             fill = app.gameOverScreenColor)
     canvas.create_text(app.width / 2, app.height * (6/16), text = "Game Over!", 
-                            font = ("Comic Sans MS",  40, "bold"), fill = "black")
+                            font = (app.font,  40), fill = "black")
 
     winningColor = None
     if app.checked == "white":
@@ -1502,15 +1579,15 @@ def drawGameOverScreen(app, canvas):
         winningColor = "white"
 
     canvas.create_text(app.width / 2, app.height * (1/2), text = f"{winningColor} wins!", 
-                        font = ("Comic Sans MS",  25), fill = "black")
+                        font = (app.font,  25), fill = "black")
     
     canvas.create_rectangle(app.okButtonX - app.okButtonWidth, 
                             app.okButtonY - app.okButtonHeight,
                             app.okButtonX + app.okButtonWidth, 
                             app.okButtonY + app.okButtonHeight,
-                            width = app.okButtonLineWidth, fill = "tan")
+                            width = app.okButtonLineWidth, fill = app.okButtonColor)
     canvas.create_text(app.okButtonX, app.okButtonY, text = "OK",
-                       font = ("Comic Sans MS",  20))
+                       font = (app.font,  20))
 
 # draws all game mode components
 def twoPlayer_redrawAll(app, canvas):
@@ -1629,14 +1706,22 @@ def copyPieces(app, pieceDict):
 # APP STARTED METHODS
 #################################################
 
+# initializes all graphics related variables (fonts, images, etc.)
+def initGraphicsVars(app):
+    app.fancyGraphics = False
+    app.normalFont = "Algerian"
+    app.fancyFont = "Comic Sans MS"
+    app.font = app.normalFont
+    app.frogImg = app.loadImage('graphicFrog.jpeg')
+
 # initializes all game board variables
 def initGameBoardVars(app):
     app.margin = 50
     app.rows, app.cols = 8, 8
     app.squareSize = (app.width - (2 * app.margin)) / 8
     app.squareOutlineWidth = 5
-    app.boardColors = ['tan', 'green']
-    app.backgroundColor = 'brown'  
+    app.boardColors = ['tan', 'lightsalmon4']
+    app.backgroundColor = 'firebrick4'  
     app.moveDotR = 5
     app.moveDotColor = "blue" 
     app.takeDotColor = "red"
@@ -1724,16 +1809,41 @@ def initGameOverVars(app):
 # initiates home screen related variables
 def initHomeScreenVars(app):
     app.buttonWidth, app.buttonHeight = 100, 30
-    app.buttonOutlineWidth = 4
+    app.buttonOutlineWidth = 3
     app.chessAITextY = app.height * (1/4)
     app.gameModeButtonY = app.height * (1/2)
     app.twoPlayerButtonX = app.width * (1/4)
     app.aiModeButtonX = app.width * (3/4)
 
+def initButtonVars(app):
+    app.isHoveringOnButton = False
+    app.normalButtonColor = 'blanchedalmond'
+    app.hoverColor = 'burlywood1'
+    app.quitButtonColor = app.resumeButtonColor = app.normalButtonColor
+    app.twoPlayerButtonColor = app.aiModeButtonColor = app.normalButtonColor
+    app.okButtonColor = app.pauseButtonColor = app.normalButtonColor
+
+def restartGame(app):
+    initGameBoardVars(app)
+    initButtonVars(app)
+    app.mode = 'homeScreenMode'
+
+    app.activePiece = None
+    app.validTakes = set()
+    app.validMoves = set()
+    app.playerToMoveIdx = 0
+    app.checked = None
+    app.gameOver = False
+    app.gameBoard = [[0] * 8 for i in range(8)]
+    initBoardVars(app)
+
 # initializes all app variables
 def appStarted(app):
     initHomeScreenVars(app)
     initGameBoardVars(app)    
+    initGraphicsVars(app)
+    initButtonVars(app)
+    app.menuBackground = "tan"
 
     # game-related variables
     app.mode = 'homeScreenMode'
@@ -1748,6 +1858,7 @@ def appStarted(app):
     app.gameOver = False
 
     app.gameBoard = [[0] * 8 for i in range(8)]
+    initGraphicsVars(app)
     initBoardVars(app)
     initPauseButtonVars(app)
     initGameOverVars(app)
