@@ -553,18 +553,8 @@ def aiMode_attemptUndoCheck(app, whitePieces, blackPieces, gameBoard, piece, mov
     color = piece.color
     pieceCopy = piece.copy()
 
-    whitePiecesCopy = dict()
-    for key in whitePieces:
-        for item in whitePieces[key]:
-            whitePiecesCopy[key] = whitePiecesCopy.get(key, set())
-            whitePiecesCopy[key].add(item.copy())
-        
-    blackPiecesCopy = dict()
-    for key in blackPieces:
-        for item in blackPieces[key]:
-            blackPiecesCopy[key] = blackPiecesCopy.get(key, set())
-            blackPiecesCopy[key].add(item.copy())
-
+    whitePiecesCopy = copyPieces(app, whitePieces)
+    blackPiecesCopy = copyPieces(app, blackPieces)
     gameBoardCopy = copyGameBoard(app, gameBoard)
 
     dRow, dCol = tempRow - piece.row, tempCol - piece.col
@@ -794,14 +784,12 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
        
         return posVal
 
-        # if is check or mate, return higher/lower values
-        # return value of state (sum of black and white piece values)
     posMovesFromState = aiMode_getMovesFromState(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
     if isMaxPlayerTurn: 
         maxEval = -100000  
         for (piece, moveLoc) in posMovesFromState:
-            whiteCopy = dict()
-            blackCopy = dict()
+            whiteCopy = copyPieces(app, whitePieces)
+            blackCopy = copyPieces(app, blackPieces)
             pieceCopy = None
 
             if piece.color == "white":
@@ -813,16 +801,6 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
                 blackPieces.remove(piece)
                 pieceCopy = piece.copy()
                 blackCopy[str(piece)] = {pieceCopy}
-
-            for key in whitePieces:
-                for item in whitePieces[key]:
-                    whiteCopy[key] = whiteCopy.get(key, set())
-                    whiteCopy[key].add(item.copy())
-            
-            for key in blackPieces:
-                for item in blackPieces[key]:
-                    blackCopy[key] = blackCopy.get(key, set())
-                    blackCopy[key].add(item.copy())
             
             if piece.color == "white":
                 whitePieces[str(piece)].add(piece)
@@ -854,9 +832,10 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
         # print('minEval!')
         minEval = 100000   
         for (piece, moveLoc) in posMovesFromState:
-            whiteCopy = dict()
-            blackCopy = dict()
+            whiteCopy = copyPieces(app, whitePieces)
+            blackCopy = copyPieces(app, blackPieces)
             pieceCopy = None
+
             # i think i can delete this entire initial color == "white" section
             if piece.color == "white":
                 whitePieces[str(piece)].remove(piece)
@@ -867,16 +846,6 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
                 blackPieces[str(piece)].remove(piece)
                 pieceCopy = piece.copy()
                 blackCopy[str(pieceCopy)] = {pieceCopy}
-
-            for key in whitePieces:
-                for item in whitePieces[key]:
-                    whiteCopy[key] = whiteCopy.get(key, set())
-                    whiteCopy[key].add(item.copy())
-            
-            for key in blackPieces:
-                for item in blackPieces[key]:
-                    blackCopy[key] = blackCopy.get(key, set())
-                    blackCopy[key].add(item.copy())
 
             if piece.color == "white":
                 whitePieces[str(piece)].add(piece)
