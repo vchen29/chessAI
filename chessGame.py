@@ -207,9 +207,6 @@ def homeScreenMode_drawScreen(app, canvas):
     canvas.create_text(app.aiModeButtonX, app.gameModeButtonY,
                        text = "AI Mode!", fill = "black",
                        font = ("Comic Sans MS",  25))
-    canvas.create_image(125, 450, image= ImageTk.PhotoImage(app.frogImg))
-    canvas.create_text(app.width / 2, app.height * (3/4), text = "graphick design is my pashion",
-                        font = ("Comic Sans MS",  25))
 
 # draw all home screen features
 def homeScreenMode_redrawAll(app, canvas):
@@ -382,7 +379,6 @@ def aiMode_makeMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc):
     if aiMode_isValidMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc):
         row, col = moveLoc[0], moveLoc[1]
         gameBoard[oldRow][oldCol] = 0
-        eval(f"{piece.color}Pieces[str(piece)].remove(piece)")
 
         oldMovedState = piece.moved
         piece.moved = True
@@ -390,10 +386,41 @@ def aiMode_makeMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc):
         dRow, dCol = row - piece.row, col - piece.col
         isCastlingMove = False
         castleDCol = None
-        if type(piece) == King and (dRow, dCol) in King.castleMoves:
-            isCastlingMove = True
-            castleDCol = dCol
         
+        if type(piece) == King and (dRow, dCol) in King.castleMoves:
+            castleDCol = dCol
+
+            rookSearchDCol = abs(castleDCol) // castleDCol
+            newKingRow, newKingCol = piece.row + dRow, piece.col + dCol
+            tempRow, tempCol = newKingRow, newKingCol + rookSearchDCol
+            rook = None
+
+            # find rook
+            while rook == None:
+                if type(gameBoard[tempRow][tempCol]) == Rook:
+                    rook = gameBoard[tempRow][tempCol]
+                    gameBoard[tempRow][tempCol] = 0
+                    for item in eval(f"{rook.color}Pieces['R']"):
+                        if (item.row, item.col) == (rook.row, rook.col):
+                            rook = item
+                            isCastlingMove = True
+                            break
+                elif isinstance(gameBoard[tempRow][tempCol], ChessPiece):
+                    isCastlingMove = False
+                    return
+                tempCol += rookSearchDCol
+
+            rookDMove = rookSearchDCol * (-1)
+            eval(f"{rook.color}Pieces['R'].remove(rook)")
+
+            piece.row, piece.col = row, col
+            rook.col = piece.col + rookDMove
+            rook.moved = True
+            gameBoard[rook.row][rook.col] = rook
+            eval(f"{rook.color}Pieces['R'].add(rook)")
+
+        eval(f"{piece.color}Pieces[str(piece)].remove(piece)")
+
         # removes pawn double-move/castle move if piece is a pawn/king or rook respectively
         if oldMovedState != True and type(piece) == Pawn:
             if piece.color == "white":
@@ -417,29 +444,6 @@ def aiMode_makeMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc):
 
         gameBoard[row][col] = piece
         eval(f"{piece.color}Pieces[str(piece)].add(piece)")
-        
-        # move respective rook to castle
-        if isCastlingMove:
-            rookSearchDCol = abs(castleDCol) // castleDCol
-            tempRow, tempCol = piece.row, piece.col + rookSearchDCol
-            rook = None
-
-            # find rook
-            while rook == None:
-                if type(gameBoard[tempRow][tempCol]) == Rook:
-                    rook = gameBoard[tempRow][tempCol]
-                    gameBoard[tempRow][tempCol] = 0
-                    for item in eval(f"{rook.color}Pieces['R']"):
-                        if (item.row, item.col) == (rook.row, rook.col):
-                            rook = item
-                            break
-                    eval(f"{rook.color}Pieces['R'].remove(rook)")
-                tempCol += rookSearchDCol
-            rookDMove = rookSearchDCol * (-1)
-            rook.col = piece.col + rookDMove
-            rook.moved = True
-            gameBoard[rook.row][rook.col] = rook
-            eval(f"{rook.color}Pieces['R'].add(rook)")
 
     return (whitePieces, blackPieces, gameBoard)
 
@@ -1009,7 +1013,6 @@ def makeMove(app, row, col):
     if (isValidMove(app, row, col, app.activePiece)):
         # remove piece from gameBoard/app.colorPieces and modify its values
         app.gameBoard[oldRow][oldCol] = 0
-        eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].remove(app.activePiece)")
 
         oldMovedState = app.activePiece.moved
         app.activePiece.moved = True
@@ -1018,9 +1021,40 @@ def makeMove(app, row, col):
         dRow, dCol = row - app.activePiece.row, col - app.activePiece.col
         isCastlingMove = False
         castleDCol = None
+        
         if type(app.activePiece) == King and (dRow, dCol) in King.castleMoves:
-            isCastlingMove = True
             castleDCol = dCol
+
+            rookSearchDCol = abs(castleDCol) // castleDCol
+            newKingRow, newKingCol = app.activePiece.row + dRow, app.activePiece.col + dCol
+            tempRow, tempCol = newKingRow, newKingCol + rookSearchDCol
+            rook = None
+
+            # find rook
+            while rook == None:
+                if type(app.gameBoard[tempRow][tempCol]) == Rook:
+                    rook = app.gameBoard[tempRow][tempCol]
+                    app.gameBoard[tempRow][tempCol] = 0
+                    for item in eval(f"app.{rook.color}Pieces['R']"):
+                        if (item.row, item.col) == (rook.row, rook.col):
+                            rook = item
+                            isCastlingMove = True
+                            break
+                elif isinstance(app.gameBoard[tempRow][tempCol], ChessPiece):
+                    isCastlingMove = False
+                    return
+                tempCol += rookSearchDCol
+
+            rookDMove = rookSearchDCol * (-1)
+            eval(f"app.{rook.color}Pieces['R'].remove(rook)")
+
+            app.activePiece.row, app.activePiece.col = row, col
+            rook.col = app.activePiece.col + rookDMove
+            rook.moved = True
+            app.gameBoard[rook.row][rook.col] = rook
+            eval(f"app.{rook.color}Pieces['R'].add(rook)")
+
+        eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].remove(app.activePiece)")
 
         # removes pawn double-move/castle move if piece is a pawn/king respectively
         if oldMovedState != True and type(app.activePiece) == Pawn:
@@ -1047,22 +1081,22 @@ def makeMove(app, row, col):
         app.gameBoard[row][col] = app.activePiece
         eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].add(app.activePiece)")
 
-        # move respective rook to castle
-        if isCastlingMove:
-            rookSearchDCol = abs(castleDCol) // castleDCol
-            tempRow, tempCol = app.activePiece.row, app.activePiece.col + rookSearchDCol
-            rook = None
-            while rook == None:
-                if type(app.gameBoard[tempRow][tempCol]) == Rook:
-                    rook = app.gameBoard[tempRow][tempCol]
-                    app.gameBoard[tempRow][tempCol] = 0
-                    eval(f"app.{rook.color}Pieces['R'].remove(rook)")
-                tempCol += rookSearchDCol
-            rookDMove = rookSearchDCol * (-1)
-            rook.col = app.activePiece.col + rookDMove
-            rook.moved = True
-            app.gameBoard[rook.row][rook.col] = rook
-            eval(f"app.{rook.color}Pieces['R'].add(rook)")
+        # # move respective rook to castle
+        # if isCastlingMove:
+        #     rookSearchDCol = abs(castleDCol) // castleDCol
+        #     tempRow, tempCol = app.activePiece.row, app.activePiece.col + rookSearchDCol
+        #     rook = None
+        #     while rook == None:
+        #         if type(app.gameBoard[tempRow][tempCol]) == Rook:
+        #             rook = app.gameBoard[tempRow][tempCol]
+        #             app.gameBoard[tempRow][tempCol] = 0
+        #             eval(f"app.{rook.color}Pieces['R'].remove(rook)")
+        #         tempCol += rookSearchDCol
+        #     rookDMove = rookSearchDCol * (-1)
+        #     rook.col = app.activePiece.col + rookDMove
+        #     rook.moved = True
+        #     app.gameBoard[rook.row][rook.col] = rook
+        #     eval(f"app.{rook.color}Pieces['R'].add(rook)")
 
         oppColor = getOpposingColor(app, app.activePiece)
         if isChecked(app, oppColor):
@@ -1715,12 +1749,8 @@ def initHomeScreenVars(app):
 
 # initializes all app variables
 def appStarted(app):
-    app.frogImg = app.loadImage('graphicFrog.jpeg')
     initHomeScreenVars(app)
     initGameBoardVars(app)    
-    # app.images = dict()
-    # chessPieces = app.loadImage('chessSprites.png')
-    # app.whitePawnImg = chessPieces.crop((1000, 0, 1200, 200))
 
     # game-related variables
     app.mode = 'homeScreenMode'
@@ -1741,8 +1771,6 @@ def appStarted(app):
         
 
 def redrawAll(app, canvas):
-    # getting image from app.images
-    # photoImage = getCachedPhotoImage(app, image)
     pass
 
 runApp(width = 600, height = 600)
