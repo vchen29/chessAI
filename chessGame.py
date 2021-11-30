@@ -339,6 +339,28 @@ def aiMode_isValidMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc)
     if type(piece) == King and kingChecked and (dRow, dCol) in King.castleMoves:
         return False
 
+    castleDCol = None
+        
+    if type(piece) == King and (dRow, dCol) in King.castleMoves:
+        castleDCol = dCol
+        rookSearchDCol = abs(castleDCol) // castleDCol
+        newKingRow, newKingCol = piece.row + dRow, piece.col + dCol
+        tempRow, tempCol = newKingRow, newKingCol + rookSearchDCol
+        rook = None
+
+        # find rook
+        while rook == None:
+            if type(gameBoard[tempRow][tempCol]) == Rook:
+                rook = gameBoard[tempRow][tempCol]
+                for item in eval(f"{rook.color}Pieces['R']"):
+                    if (item.row, item.col) == (rook.row, rook.col):
+                        return True
+                        
+            elif isinstance(gameBoard[tempRow][tempCol], ChessPiece):
+                return False
+    
+            tempCol += rookSearchDCol
+        
     hasNoBlockingPieces = aiMode_checkBlockingPieces(app, gameBoard, piece, moveLoc)
     isStillChecked = aiMode_attemptUndoCheck(app, whitePieces, blackPieces, gameBoard, piece, moveLoc)
     if hasNoBlockingPieces and isStillChecked:
@@ -384,7 +406,6 @@ def aiMode_makeMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc):
         piece.moved = True
 
         dRow, dCol = row - piece.row, col - piece.col
-        isCastlingMove = False
         castleDCol = None
         
         if type(piece) == King and (dRow, dCol) in King.castleMoves:
@@ -396,25 +417,21 @@ def aiMode_makeMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc):
             rook = None
 
             # find rook
-            while rook == None:
+            while rook == None and rowColInBounds(app, tempRow, tempCol):
                 if type(gameBoard[tempRow][tempCol]) == Rook:
                     rook = gameBoard[tempRow][tempCol]
-                    gameBoard[tempRow][tempCol] = 0
                     for item in eval(f"{rook.color}Pieces['R']"):
                         if (item.row, item.col) == (rook.row, rook.col):
                             rook = item
-                            isCastlingMove = True
+                            gameBoard[tempRow][tempCol] = 0
                             break
-                elif isinstance(gameBoard[tempRow][tempCol], ChessPiece):
-                    isCastlingMove = False
-                    return
+            
                 tempCol += rookSearchDCol
 
             rookDMove = rookSearchDCol * (-1)
             eval(f"{rook.color}Pieces['R'].remove(rook)")
 
-            piece.row, piece.col = row, col
-            rook.col = piece.col + rookDMove
+            rook.col = newKingCol + rookDMove
             rook.moved = True
             gameBoard[rook.row][rook.col] = rook
             eval(f"{rook.color}Pieces['R'].add(rook)")
@@ -942,6 +959,29 @@ def isValidMove(app, moveRow, moveCol, piece):
     if type(piece) == King and kingChecked and (dRow, dCol) in King.castleMoves:
         return False
     
+    # if king attempting castle move, check if it's valid for rook and king
+    castleDCol = None
+        
+    if type(piece) == King and (dRow, dCol) in King.castleMoves:
+        castleDCol = dCol
+        rookSearchDCol = abs(castleDCol) // castleDCol
+        newKingRow, newKingCol = piece.row + dRow, piece.col + dCol
+        tempRow, tempCol = newKingRow, newKingCol + rookSearchDCol
+        rook = None
+
+        # find rook
+        while rook == None:
+            if type(app.gameBoard[tempRow][tempCol]) == Rook:
+                rook = app.gameBoard[tempRow][tempCol]
+                for item in eval(f"app.{rook.color}Pieces['R']"):
+                    if (item.row, item.col) == (rook.row, rook.col):
+                        return True
+                        
+            elif isinstance(app.gameBoard[tempRow][tempCol], ChessPiece):
+                return False
+    
+            tempCol += rookSearchDCol
+
     hasNoBlockingPieces = checkBlockingPieces(app, moveRow, moveCol, piece)
     isStillChecked = attemptUndoCheck(app, moveRow, moveCol, piece)
     if hasNoBlockingPieces and isStillChecked:
@@ -1013,15 +1053,13 @@ def makeMove(app, row, col):
     if (isValidMove(app, row, col, app.activePiece)):
         # remove piece from gameBoard/app.colorPieces and modify its values
         app.gameBoard[oldRow][oldCol] = 0
-
         oldMovedState = app.activePiece.moved
         app.activePiece.moved = True
 
         # checks if move is a castling move
         dRow, dCol = row - app.activePiece.row, col - app.activePiece.col
-        isCastlingMove = False
         castleDCol = None
-        
+
         if type(app.activePiece) == King and (dRow, dCol) in King.castleMoves:
             castleDCol = dCol
 
@@ -1031,25 +1069,20 @@ def makeMove(app, row, col):
             rook = None
 
             # find rook
-            while rook == None:
+            while rook == None and rowColInBounds(app, tempRow, tempCol):
                 if type(app.gameBoard[tempRow][tempCol]) == Rook:
                     rook = app.gameBoard[tempRow][tempCol]
-                    app.gameBoard[tempRow][tempCol] = 0
                     for item in eval(f"app.{rook.color}Pieces['R']"):
                         if (item.row, item.col) == (rook.row, rook.col):
                             rook = item
-                            isCastlingMove = True
+                            app.gameBoard[tempRow][tempCol] = 0
                             break
-                elif isinstance(app.gameBoard[tempRow][tempCol], ChessPiece):
-                    isCastlingMove = False
-                    return
                 tempCol += rookSearchDCol
 
             rookDMove = rookSearchDCol * (-1)
             eval(f"app.{rook.color}Pieces['R'].remove(rook)")
 
-            app.activePiece.row, app.activePiece.col = row, col
-            rook.col = app.activePiece.col + rookDMove
+            rook.col = newKingCol + rookDMove
             rook.moved = True
             app.gameBoard[rook.row][rook.col] = rook
             eval(f"app.{rook.color}Pieces['R'].add(rook)")
@@ -1081,23 +1114,6 @@ def makeMove(app, row, col):
         app.gameBoard[row][col] = app.activePiece
         eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].add(app.activePiece)")
 
-        # # move respective rook to castle
-        # if isCastlingMove:
-        #     rookSearchDCol = abs(castleDCol) // castleDCol
-        #     tempRow, tempCol = app.activePiece.row, app.activePiece.col + rookSearchDCol
-        #     rook = None
-        #     while rook == None:
-        #         if type(app.gameBoard[tempRow][tempCol]) == Rook:
-        #             rook = app.gameBoard[tempRow][tempCol]
-        #             app.gameBoard[tempRow][tempCol] = 0
-        #             eval(f"app.{rook.color}Pieces['R'].remove(rook)")
-        #         tempCol += rookSearchDCol
-        #     rookDMove = rookSearchDCol * (-1)
-        #     rook.col = app.activePiece.col + rookDMove
-        #     rook.moved = True
-        #     app.gameBoard[rook.row][rook.col] = rook
-        #     eval(f"app.{rook.color}Pieces['R'].add(rook)")
-
         oppColor = getOpposingColor(app, app.activePiece)
         if isChecked(app, oppColor):
             app.checked = oppColor
@@ -1115,7 +1131,6 @@ def makeMove(app, row, col):
 # if take is valid, take + remove piece from pieces and gameBoard
 def takePiece(app, row, col):
     oldRow, oldCol = app.activePiece.row, app.activePiece.col
-    oldMoved = app.activePiece.moved
 
     if (isValidTake(app, row, col, app.activePiece)):
         app.gameBoard[oldRow][oldCol] = 0
@@ -1163,45 +1178,29 @@ def takePiece(app, row, col):
         app.validTakes = set()
         app.playerToMoveIdx += 1
 
-# wrapper function returning True if color king is checked
+# returns True if checked
 def isChecked(app, color):
-    return getCheckedAndPieces(app, color)[1]
-
-# wrapper function returning pieces checking color king
-def getCheckingPieces(app, color):
-    return getCheckedAndPieces(app, color)[0]
-
-# returns True and pieces checking color king if checked
-# return False and empty set if color king is not checked
-def getCheckedAndPieces(app, color):
     king = eval(f"app.{color}Pieces['K'].pop()")
     eval(f"app.{color}Pieces['K'].add(king)")
-    checked = False
-    checkingPieces = []
+    oppColor = None
+    if color == "white":
+        oppColor = "black"
+    else:
+        oppColor = "white"
 
-    for (drow, dcol) in Knight.moves:
-        row, col = king.row + drow, king.col + dcol
-        if rowColInBounds(app, row, col):
-            tempPiece = app.gameBoard[row][col]
-            if type(tempPiece) == Knight and tempPiece.color != king.color:
-                checked = True
-                checkingPieces.append(tempPiece)
+    for knight in eval(f"app.{oppColor}Pieces['N']"):
+        (dRow, dCol) = (king.row - knight.row, king.col - knight.col)
+        if (dRow, dCol) in knight.takeMoves:
+            return True
     
-    for dirRow, dirCol in king.posMoves:
-        row, col = king.row + dirRow, king.col + dirCol
-        while rowColInBounds(app, row, col):
-            boardSq = app.gameBoard[row][col]
-            if isinstance(boardSq, ChessPiece) and boardSq.color != king.color:
-                if boardSq.hasTake(king.row - row, king.col - col):
-                    checked = True
-                    checkingPieces.append(boardSq)
-                else:
-                    break
-            elif isinstance(boardSq, ChessPiece) and boardSq.color == king.color:
-                break
-            row += dirRow
-            col += dirCol
-    return (checkingPieces, checked)
+    for key in {'P','B','R','Q','K'}:
+        for piece in eval(f"app.{oppColor}Pieces[key]"):
+            (dRow, dCol) = (king.row - piece.row, king.col - piece.col)
+            if ((dRow, dCol) in piece.takeMoves and 
+                checkBlockingPieces(app, king.row, king.col, piece)):
+                return True
+    return False
+
 
 # return True if color is mated
 def isMated(app, color):
