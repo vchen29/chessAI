@@ -225,6 +225,7 @@ def homeScreenMode_drawScreen(app, canvas):
                        text = "AI Mode", fill = "black",
                        font = (app.font,  20))
 
+# key pressed function for homeScreenMode
 def homeScreenMode_keyPressed(app, event):
     key = event.key
     if key == "g":
@@ -270,6 +271,7 @@ def aiMode_timerFired(app):
         else: # take move
             takePiece(app, row, col)
 
+# function runs when mouse is moved in aiMode
 def aiMode_mouseMoved(app, event):    
     x, y = event.x, event.y
     app.resumeButtonColor = app.normalButtonColor
@@ -300,7 +302,7 @@ def aiMode_mouseMoved(app, event):
         and y < app.pauseY + app.pauseWidth):
         app.pauseButtonColor = app.hoverColor
 
-
+# key pressed function in aiMode
 def aiMode_keyPressed(app, event):
     key = event.key
     if key == "g":
@@ -309,7 +311,8 @@ def aiMode_keyPressed(app, event):
         else:
             app.font = app.fancyFont
         app.fancyGraphics = not app.fancyGraphics
-    keyPressed(app, event)
+    else:
+        keyPressed(app, event)
 
 # mouse pressed function responsible for moving pieces and game functionalities
 def aiMode_mousePressed(app, event):
@@ -751,7 +754,7 @@ def aiMode_getValidMoves(app, whitePieces, blackPieces, gameBoard, piece):
     for (dRow, dCol) in posMoves:
         moveRow, moveCol = currRow + dRow, currCol + dCol
         moveLoc = (moveRow, moveCol)
-        if (aiMode_isValidTake(app, whitePieces, blackPieces, 
+        if (aiMode_isValidMove(app, whitePieces, blackPieces, 
                                gameBoard, piece, moveLoc)):
             validMoves.add((moveRow, moveCol))
     return validMoves
@@ -856,11 +859,11 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
         # add "value bonuses" if the move results in a check or mate
         if isMated and playerColor == 'black':
             posVal += 50
-        elif isChecked and playerColor == 'black':
+        if isChecked and playerColor == 'black':
             posVal += 15
-        elif isMated and playerColor == "white":
+        if isMated and playerColor == "white":
             posVal -= 50
-        elif isChecked and playerColor == "white":
+        if isChecked and playerColor == "white":
             posVal -= 15
 
         for pieceType in blackPieces:
@@ -872,11 +875,14 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
                 posVal += item.value
        
         return posVal
-    # elif aiMode_isStalemate(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
-    #     if isMaxPlayerTurn:
-    #         return 100000
-    #     else:
-    #         return -100000
+
+    elif aiMode_isStalemate(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
+        print(f"Stalemate:\n{gameBoard}\n")
+        if isMaxPlayerTurn:
+            return 100000
+        else:
+            return -100000
+
     posMovesFromState = aiMode_getMovesFromState(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
     if isMaxPlayerTurn: 
         maxEval = -100000  
@@ -900,10 +906,10 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
             if isValidMove:
                 newState = aiMode_makeMove(app, whiteCopy, blackCopy, 
                                            gameBoardCopy, pieceCopy, moveLoc)
-                
             elif isValidTake:
                 newState = aiMode_takePiece(app, whiteCopy, blackCopy, 
                                            gameBoardCopy, pieceCopy, moveLoc)
+
             newWhitePieces, newBlackPieces, newGameBoard = newState[0], newState[1], newState[2]
             eval = aiMode_minimax(app, newWhitePieces, newBlackPieces, newGameBoard, 
                                     depth - 1, not isMaxPlayerTurn)  
@@ -930,14 +936,16 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
             isValidTake = aiMode_isValidTake(app, whiteCopy, blackCopy, 
                                              gameBoardCopy, pieceCopy, moveLoc)
 
-            if isValidMove or isValidTake:
+            if isValidMove:
                 newState = aiMode_makeMove(app, whiteCopy, blackCopy, 
                                            gameBoardCopy, pieceCopy, moveLoc)
-
-                newWhitePieces, newBlackPieces, newGameBoard = newState[0], newState[1], newState[2]
-                eval = aiMode_minimax(app, newWhitePieces, newBlackPieces, newGameBoard, 
+            elif isValidTake:
+                newState = aiMode_takePiece(app, whiteCopy, blackCopy, 
+                                           gameBoardCopy, pieceCopy, moveLoc)
+            newWhitePieces, newBlackPieces, newGameBoard = newState[0], newState[1], newState[2]
+            eval = aiMode_minimax(app, newWhitePieces, newBlackPieces, newGameBoard, 
                                       depth - 1, not isMaxPlayerTurn)  
-                minEval = min(minEval, eval)    
+            minEval = min(minEval, eval)    
 
         return minEval 
 
@@ -1433,7 +1441,8 @@ def twoPlayer_keyPressed(app, event):
         else:
             app.font = app.fancyFont
         app.fancyGraphics = not app.fancyGraphics
-    keyPressed(app, event)
+    else:
+        keyPressed(app, event)
 
 ########################
 # DRAW FUNCTIONS
@@ -1595,7 +1604,7 @@ def drawGameOverScreen(app, canvas):
     canvas.create_rectangle(0, 0, app.width, app.height,
                             fill = app.gameOverScreenColor)
     canvas.create_text(app.width / 2, app.height * (6/16), text = "Game Over!", 
-                            font = (app.font,  40), fill = "black")
+                            font = (app.font,  50), fill = "black")
 
     winningColor = None
     if app.checked == "white":
@@ -1684,13 +1693,13 @@ def keyPressed(app, event):
             app.gameBoard[blackPiece.row][blackPiece.col] = blackPiece
 
     elif key == "4": # two-rook mate (against white)
-        wKing = King(6, 1, "white", True)
+        wKing = King(7, 1, "white", True)
         app.whitePieces['K'].add(wKing)
         app.gameBoard[wKing.row][wKing.col] = wKing
 
         bKing = King(0, 4, "black", True)
-        bRook1 = Rook(5, 7, "black", True)
-        bRook2 = Rook(4, 6, "black", True)
+        bRook1 = Rook(5, 3, "black", True)
+        bRook2 = Rook(6, 6, "black", True)
         for blackPiece in {bKing, bRook1, bRook2}:
             app.blackPieces[str(blackPiece)].add(blackPiece)
             app.gameBoard[blackPiece.row][blackPiece.col] = blackPiece
