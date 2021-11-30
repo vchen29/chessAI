@@ -190,7 +190,7 @@ def homeScreenMode_drawScreen(app, canvas):
     canvas.create_rectangle(0, 0, app.width, app.height,
                             fill = "tan")
     canvas.create_text(app.width / 2, app.chessAITextY,
-                       text = "Chess AI", font = "Helvetica 70")
+                       text = "Chess AI", font = ("Comic Sans MS", 70))
     canvas.create_rectangle(app.twoPlayerButtonX - app.buttonWidth, 
                             app.gameModeButtonY - app.buttonHeight,
                             app.twoPlayerButtonX + app.buttonWidth,
@@ -198,7 +198,7 @@ def homeScreenMode_drawScreen(app, canvas):
                             width = app.buttonOutlineWidth, fill = "brown")
     canvas.create_text(app.twoPlayerButtonX, app.gameModeButtonY,
                        text = "Two Players", fill = "black",
-                       font = "Helvetica 25")
+                       font = ("Comic Sans MS",  25))
     canvas.create_rectangle(app.aiModeButtonX - app.buttonWidth, 
                             app.gameModeButtonY - app.buttonHeight,
                             app.aiModeButtonX + app.buttonWidth,
@@ -206,7 +206,10 @@ def homeScreenMode_drawScreen(app, canvas):
                             width = app.buttonOutlineWidth, fill = "brown")
     canvas.create_text(app.aiModeButtonX, app.gameModeButtonY,
                        text = "AI Mode!", fill = "black",
-                       font = "Helvetica 25")
+                       font = ("Comic Sans MS",  25))
+    canvas.create_image(125, 450, image= ImageTk.PhotoImage(app.frogImg))
+    canvas.create_text(app.width / 2, app.height * (3/4), text = "graphick design is my pashion",
+                        font = ("Comic Sans MS",  25))
 
 # draw all home screen features
 def homeScreenMode_redrawAll(app, canvas):
@@ -877,9 +880,9 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
 # draws player labels for aiMode
 def aiMode_drawPlayerLabels(app, canvas):
     canvas.create_text(app.width / 2, app.height - app.margin / 2,
-                        text = "Player", fill = "black", font = "Arial 20 bold")
+                        text = "Player", fill = "black", font = ("Comic Sans MS",  20, "bold"))
     canvas.create_text(app.width / 2, app.margin / 2,
-                        text = "Computer", fill = "black", font = "Arial 20 bold")
+                        text = "Computer", fill = "black", font = ("Comic Sans MS",  20, "bold"))
 
 # draws all components of aiMode
 def aiMode_redrawAll(app, canvas):
@@ -1326,9 +1329,9 @@ def twoPlayer_keyPressed(app, event):
 # draws player labels
 def drawPlayerLabels(app, canvas):
     canvas.create_text(app.width / 2, app.height - app.margin / 2,
-                        text = "Player 1", fill = "black", font = "Arial 20 bold")
+                        text = "Player 1", fill = "black", font = ("Comic Sans MS",  20, "bold"))
     canvas.create_text(app.width / 2, app.margin / 2,
-                        text = "Player 2", fill = "black", font = "Arial 20 bold")
+                        text = "Player 2", fill = "black", font = ("Comic Sans MS",  20, "bold"))
 
 # draws taken pieces on side of the chess board                     
 def drawTakenPieces(app, canvas):
@@ -1347,7 +1350,7 @@ def drawTakenPieces(app, canvas):
                 x0, y0, x1, y1 = getDimensions(app, piece.row, piece.col)
                 canvas.create_text(app.width - (app.margin / 2),  
                                 app.margin * (5/4) + (app.margin / 2) * idx,
-                                text = str(piece), font = "Arial 15",
+                                text = str(piece), font = ("Comic Sans MS",  15),
                                 fill = piece.color)
                 idx += 1
 
@@ -1365,7 +1368,7 @@ def drawTakenPieces(app, canvas):
                 x0, y0, x1, y1 = getDimensions(app, piece.row, piece.col)
                 canvas.create_text(app.margin / 2,
                                 (app.height - app.margin * (5/4)) - (app.margin / 2) * idx,
-                                text = str(piece), font = "Arial 15",
+                                text = str(piece), font = ("Comic Sans MS",  15),
                                 fill = piece.color)
                 idx += 1
 
@@ -1399,7 +1402,7 @@ def drawPieces(app, canvas):
         for piece in whiteTypePieces.union(blackTypePieces):
             x0, y0, x1, y1 = getDimensions(app, piece.row, piece.col)
             canvas.create_text((x0 + x1) / 2, (y0 + y1) / 2,
-                                    text = str(piece), font = "Arial 20",
+                                    text = str(piece), font = ("Comic Sans MS",  20),
                                     fill = piece.color)
 
 # draws "check" message at top for whichever color is checked
@@ -1411,7 +1414,7 @@ def drawCheck(app, canvas):
                             fill = "yellow")
     canvas.create_text(app.pauseMargin + app.buttonWidth / 2, 
                        app.pauseMargin + app.buttonHeight / 2, 
-                       text = f"{app.checked} checked!", font = "Arial 10",
+                       text = f"{app.checked} checked!", font = ("Comic Sans MS",  10),
                        fill = "black")
 
 # draws player's avaliable moves and takes
@@ -1448,7 +1451,7 @@ def drawPauseMenu(app, canvas):
     canvas.create_rectangle(0, 0, app.width, app.height,
                             fill = "ivory3")
     canvas.create_text(app.pausedTextX, app.pausedTextY,
-                       text = "Pause Menu", font = "Arial 40 bold",
+                       text = "Pause Menu", font = ("Comic Sans MS",  40, "bold"),
                        fill = "black", anchor = "n")
     canvas.create_rectangle(app.resumeX - app.pauseButtonsWidth, 
                             app.resumeY - app.pauseButtonsHeight,
@@ -1457,7 +1460,7 @@ def drawPauseMenu(app, canvas):
                             width = app.buttonOutlineWidth,
                             fill = "tan")
     canvas.create_text(app.resumeX, app.resumeY, text = "Resume",
-                       font = "Arial 25", fill = "black")
+                       font = ("Comic Sans MS",  25), fill = "black")
 
     canvas.create_rectangle(app.quitX - app.pauseButtonsWidth, 
                             app.quitY - app.pauseButtonsHeight,
@@ -1466,14 +1469,14 @@ def drawPauseMenu(app, canvas):
                             width = app.buttonOutlineWidth,
                             fill = "tan")
     canvas.create_text(app.quitX, app.quitY, text = "Quit",
-                       font = "Arial 25", fill = "black")
+                       font = ("Comic Sans MS",  25), fill = "black")
 
 # draws game over screen      
 def drawGameOverScreen(app, canvas):
     canvas.create_rectangle(0, 0, app.width, app.height,
                             fill = app.gameOverScreenColor)
     canvas.create_text(app.width / 2, app.height * (6/16), text = "Game Over!", 
-                            font = "Arial 40 bold", fill = "black")
+                            font = ("Comic Sans MS",  40, "bold"), fill = "black")
 
     winningColor = None
     if app.checked == "white":
@@ -1482,7 +1485,7 @@ def drawGameOverScreen(app, canvas):
         winningColor = "white"
 
     canvas.create_text(app.width / 2, app.height * (1/2), text = f"{winningColor} wins!", 
-                            font = "Arial 25", fill = "black")
+                        font = ("Comic Sans MS",  25), fill = "black")
     
     canvas.create_rectangle(app.okButtonX - app.okButtonWidth, 
                             app.okButtonY - app.okButtonHeight,
@@ -1490,7 +1493,7 @@ def drawGameOverScreen(app, canvas):
                             app.okButtonY + app.okButtonHeight,
                             width = app.okButtonLineWidth, fill = "tan")
     canvas.create_text(app.okButtonX, app.okButtonY, text = "OK",
-                       font = "Arial 20")
+                       font = ("Comic Sans MS",  20))
 
 # draws all game mode components
 def twoPlayer_redrawAll(app, canvas):
@@ -1712,6 +1715,7 @@ def initHomeScreenVars(app):
 
 # initializes all app variables
 def appStarted(app):
+    app.frogImg = app.loadImage('graphicFrog.jpeg')
     initHomeScreenVars(app)
     initGameBoardVars(app)    
     # app.images = dict()
