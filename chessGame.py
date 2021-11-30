@@ -226,15 +226,16 @@ def aiMode_timerFired(app):
     # tests to see if it's computer's turn
     if app.playerToMoveIdx % 2 == 1:
         gameBoardCopy = copyGameBoard(app, app.gameBoard)
-
+        # whiteCopy = copyPieces(app, app.whitePieces)
+        # blackCopy = copyPieces(app, app.blackPieces)
         bestPiece, bestMove = aiMode_getMinimaxBestMove(app, app.whitePieces.copy(), 
                                                 app.blackPieces.copy(),
                                                 gameBoardCopy)
         app.activePiece = bestPiece
         row, col = bestMove[0], bestMove[1]
-        if isValidMove(app, row, col, bestPiece):
+        if isinstance(app.gameBoard[row][col], int):
             makeMove(app, row, col)
-        else: # isValidTake
+        else: # take move
             takePiece(app, row, col)
 
 # mouse pressed function responsible for moving pieces and game functionalities
@@ -636,46 +637,29 @@ def aiMode_attemptUndoCheck(app, whitePieces, blackPieces, gameBoard, piece, mov
             return result
     return False
 
-# returns True if king of current turn's player is checked in minimax node state
+# returns True if color is checked in minimax node state
 def aiMode_isChecked(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
-    return aiMode_getCheckedAndPieces(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)[1]
-
-# returns set of all pieces checking king in minimax node state
-def aiMode_getCheckingPieces(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
-    return aiMode_getCheckedAndPieces(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)[0]
-
-# returns True and pieces checking color king if checked in minimax node state
-def aiMode_getCheckedAndPieces(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
     color = aiMode_getPlayerColor(isMaxPlayerTurn)
     king = eval(f"{color}Pieces['K'].pop()")
     eval(f"{color}Pieces['K'].add(king)")
-    checked = False
-    checkingPieces = []
+    oppColor = None
+    if color == "white":
+        oppColor = "black"
+    else:
+        oppColor = "white"
 
-    for (drow, dcol) in Knight.moves:
-        row, col = king.row + drow, king.col + dcol
-        if rowColInBounds(app, row, col):
-            tempPiece = gameBoard[row][col]
-            if type(tempPiece) == Knight and tempPiece.color != king.color:
-                checked = True
-                checkingPieces.append(tempPiece)
+    for knight in eval(f"{oppColor}Pieces['N']"):
+        (dRow, dCol) = (king.row - knight.row, king.col - knight.col)
+        if (dRow, dCol) in knight.takeMoves:
+            return True
     
-    for dirRow, dirCol in king.posMoves:
-        row, col = king.row + dirRow, king.col + dirCol
-        while rowColInBounds(app, row, col):
-            boardSq = gameBoard[row][col]
-            if isinstance(boardSq, ChessPiece) and boardSq.color != king.color:
-                if boardSq.hasTake(king.row - row, king.col - col):
-                    checked = True
-                    checkingPieces.append(boardSq)
-                else:
-                    break
-            elif isinstance(boardSq, ChessPiece) and boardSq.color == king.color:
-                break
-            row += dirRow
-            col += dirCol
-
-    return (checkingPieces, checked)
+    for key in {'P','B','R','Q','K'}:
+        for piece in eval(f"{oppColor}Pieces[key]"):
+            (dRow, dCol) = (king.row - piece.row, king.col - piece.col)
+            if ((dRow, dCol) in piece.takeMoves and 
+                aiMode_checkBlockingPieces(app, gameBoard, piece, (king.row, king.col))):
+                return True
+    return False
 
 # returns set of valid moves for given piece in minimax node state
 def aiMode_getValidMoves(app, whitePieces, blackPieces, gameBoard, piece):
