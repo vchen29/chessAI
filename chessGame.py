@@ -437,7 +437,7 @@ def aiMode_isValidMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc)
         rook = None
 
         # find rook
-        while rook == None:
+        while rowColInBounds(app, tempRow, tempCol):
             if type(gameBoard[tempRow][tempCol]) == Rook:
                 rook = gameBoard[tempRow][tempCol]
                 for item in eval(f"{rook.color}Pieces['R']"):
@@ -494,7 +494,6 @@ def aiMode_makeMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc):
         piece.moved = True
 
         dRow, dCol = row - piece.row, col - piece.col
-        castleDCol = None
         
         if type(piece) == King and (dRow, dCol) in King.castleMoves:
             castleDCol = dCol
@@ -803,7 +802,6 @@ def aiMode_getMinimaxBestMove(app, whitePieces, blackPieces, gameBoard, isMaxPla
     bestMove = None
     minVal = None
     posMoves = aiMode_getMovesFromState(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
-    print("\n\n")
     for (piece, moveLoc) in posMoves:
         moveRow, moveCol = moveLoc[0], moveLoc[1]
         depth = 1
@@ -840,7 +838,6 @@ def aiMode_getMinimaxBestMove(app, whitePieces, blackPieces, gameBoard, isMaxPla
             minVal = moveVal
             bestPiece = piece
             bestMove = (moveRow, moveCol)
-            print(bestPiece, bestMove, minVal)
     return bestPiece, bestMove
 
 # general pseudocode structure: https://www.javatpoint.com/mini-max-algorithm-in-ai
@@ -852,6 +849,7 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
     if isChecked:
         isMated = aiMode_isMated(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
 
+    # base case 1: if depth = 0 or the current player is mated
     if depth == 0 or isMated:
         posVal = 0
         playerColor = aiMode_getPlayerColor(isMaxPlayerTurn)
@@ -875,14 +873,14 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
                 posVal += item.value
        
         return posVal
-
+    # base case 2: if the active player has no moves to play but isn't checked (stalemate)
     elif aiMode_isStalemate(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
-        print(f"Stalemate:\n{gameBoard}\n")
         if isMaxPlayerTurn:
             return 100000
         else:
             return -100000
 
+    # minimax recursive case
     posMovesFromState = aiMode_getMovesFromState(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
     if isMaxPlayerTurn: 
         maxEval = -100000  
@@ -955,10 +953,16 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
 
 # draws player labels for aiMode
 def aiMode_drawPlayerLabels(app, canvas):
-    canvas.create_text(app.width / 2, app.height - app.margin / 2,
-                        text = "Player", fill = "black", font = (app.font,  20))
-    canvas.create_text(app.width / 2, app.margin / 2,
-                        text = "Computer", fill = "black", font = (app.font,  20))
+    if app.playerToMoveIdx % 2 == 0:
+        canvas.create_text(app.width / 2, app.height - app.margin / 2,
+                            text = "Player 1", fill = "gold", font = (app.font,  20))
+        canvas.create_text(app.width / 2, app.margin / 2,
+                            text = "Computer", fill = "black", font = (app.font,  20))
+    else:
+        canvas.create_text(app.width / 2, app.height - app.margin / 2,
+                            text = "Player 1", fill = "black", font = (app.font,  20))
+        canvas.create_text(app.width / 2, app.margin / 2,
+                            text = "Computer", fill = "gold", font = (app.font,  20))
 
 # draws all components of aiMode
 def aiMode_redrawAll(app, canvas):
@@ -1054,7 +1058,7 @@ def isValidMove(app, moveRow, moveCol, piece):
         rook = None
 
         # find rook
-        while rook == None:
+        while rowColInBounds(app, tempRow, tempCol):
             if type(app.gameBoard[tempRow][tempCol]) == Rook:
                 rook = app.gameBoard[tempRow][tempCol]
                 for item in eval(f"app.{rook.color}Pieces['R']"):
@@ -1648,10 +1652,11 @@ def twoPlayer_redrawAll(app, canvas):
 # GENERAL CONTROLS
 #################################################
 
+# general keyPressed functions for test cases
 def keyPressed(app, event):
     key = event.key
     restartGame(app)
-    if key.isdigit() and key != "2":
+    if key.isdigit() and int(key) not in {2, 5}:
         app.whitePieces = {"P": set(), "B": set(), "N": set(), 
                         "R": set(), "K": set(), "Q": set()}
         app.blackPieces = {"P": set(), "B": set(), "N": set(), 
@@ -1703,17 +1708,74 @@ def keyPressed(app, event):
         for blackPiece in {bKing, bRook1, bRook2}:
             app.blackPieces[str(blackPiece)].add(blackPiece)
             app.gameBoard[blackPiece.row][blackPiece.col] = blackPiece
-    elif key == "5":
-        pass # check situation 1
-    elif key == "6":
-        pass # check situation 2
-    elif key == "7":
-        pass # check situation 3
-    elif key == "8":
-        pass # near-side castle
-    elif key == "9":
-        pass # far-side castle
-    elif key == "0":
+
+    elif key == "5": # simple check with bishop
+        app.activePiece = app.gameBoard[6][4]
+        makeMove(app, 4, 4)
+        app.activePiece = app.gameBoard[1][3]
+        makeMove(app, 3, 3)
+
+    elif key == "6": # backrank check (not mate)
+        wQueen = Queen(7, 3, 'white')
+        wKing = King(7, 4, 'white', True)
+        wBishop1 = Bishop(4, 2, 'white')
+        for whitePiece in {wQueen, wKing, wBishop1}:
+            app.whitePieces[str(whitePiece)].add(whitePiece)
+            app.gameBoard[whitePiece.row][whitePiece.col] = whitePiece
+
+        bKing = King(0, 6, "black", True)
+        bPawn1 = Pawn(1, 5, "black")
+        bPawn2 = Pawn(1, 6, "black")
+        bPawn3 = Pawn(2, 7, "black")
+        for blackPiece in {bPawn1, bPawn2, bPawn3, bKing}:
+            app.blackPieces[str(blackPiece)].add(blackPiece)
+            app.gameBoard[blackPiece.row][blackPiece.col] = blackPiece
+
+    elif key == "7": # simple black check white using queen (with mate in 2)
+        bKnight1 = Knight(4, 3, "black")
+        bQueen = Queen(1, 2, 'black')
+        bKing = King(0, 4, 'black', True)
+        for blackPiece in {bKnight1, bQueen, bKing}:
+            app.blackPieces[str(blackPiece)].add(blackPiece)
+            app.gameBoard[blackPiece.row][blackPiece.col] = blackPiece
+
+        wKing = King(7, 3, "white", True)
+        wRook1 = Rook(7, 0, "white", True)
+        for whitePiece in {wRook1, wKing}:
+            app.whitePieces[str(whitePiece)].add(whitePiece)
+            app.gameBoard[whitePiece.row][whitePiece.col] = whitePiece
+        app.playerToMoveIdx += 1
+
+    elif key == "8": # black king far-side castle demonstration
+        bRook1 = Rook(0, 0, "black")
+        bQueen = Queen(1, 2, 'black')
+        bKing = King(0, 4, 'black')
+        bKing.posMoves.remove((0, 2))
+        for blackPiece in {bRook1, bQueen, bKing}:
+            app.blackPieces[str(blackPiece)].add(blackPiece)
+            app.gameBoard[blackPiece.row][blackPiece.col] = blackPiece
+
+        wKing = King(6, 3, "white", True)
+        for whitePiece in {wKing}:
+            app.whitePieces[str(whitePiece)].add(whitePiece)
+            app.gameBoard[whitePiece.row][whitePiece.col] = whitePiece
+        app.playerToMoveIdx += 1
+
+    elif key == "9": # white king near-side castle demonstration
+        bKing = King(0, 4, 'black', True)
+        for blackPiece in {bKing}:
+            app.blackPieces[str(blackPiece)].add(blackPiece)
+            app.gameBoard[blackPiece.row][blackPiece.col] = blackPiece
+
+        wKing = King(7, 4, "white")
+        wKing.posMoves.remove((0, -2))
+        wQueen = Queen(7, 3, "white")
+        wRook = Rook(7, 7, "white")
+        for whitePiece in {wRook, wQueen, wKing}:
+            app.whitePieces[str(whitePiece)].add(whitePiece)
+            app.gameBoard[whitePiece.row][whitePiece.col] = whitePiece
+
+    elif key == "0": # resets game
         restartGame(app)
 
 # returns number of pieces in dictionary
@@ -1814,6 +1876,7 @@ def initGraphicsVars(app):
     app.normalFont = "Algerian"
     app.fancyFont = "Comic Sans MS"
     app.font = app.normalFont
+    # image from: https://i.kym-cdn.com/photos/images/newsfeed/001/018/903/29e.jpg
     app.frogImg = app.loadImage('graphicFrog.jpeg')
 
 # initializes all game board variables
