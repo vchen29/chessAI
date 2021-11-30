@@ -253,6 +253,8 @@ def homeScreenMode_redrawAll(app, canvas):
 
 # timer fired function
 def aiMode_timerFired(app):
+    if app.gameOver or app.paused:
+        return
     # tests to see if it's computer's turn
     if app.playerToMoveIdx % 2 == 1:
         gameBoardCopy = copyGameBoard(app, app.gameBoard)
@@ -273,6 +275,7 @@ def aiMode_mouseMoved(app, event):
     app.resumeButtonColor = app.normalButtonColor
     app.quitButtonColor = app.normalButtonColor
     app.pauseButtonColor = app.normalButtonColor
+    app.okButtonColor = app.normalButtonColor
     if app.paused:
         # if hovering inside resume button
         if (x > app.resumeX - app.pauseButtonsWidth
@@ -306,6 +309,7 @@ def aiMode_keyPressed(app, event):
         else:
             app.font = app.fancyFont
         app.fancyGraphics = not app.fancyGraphics
+    keyPressed(app, event)
 
 # mouse pressed function responsible for moving pieces and game functionalities
 def aiMode_mousePressed(app, event):
@@ -387,6 +391,18 @@ def aiMode_mousePressed(app, event):
 # AI HELPER FUNCTIONS
 ######################## 
 
+def aiMode_isStalemate(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
+    color = aiMode_getPlayerColor(isMaxPlayerTurn)
+    king = eval(f"{color}Pieces['K'].pop()")
+    eval(f"{color}Pieces['K'].add(king)")
+    numPieces = getNumberOfPieces(app, eval(f"{color}Pieces"))
+    kingMoves = aiMode_getValidMoves(app, whitePieces, blackPieces, gameBoard, king)
+    kingTakes = aiMode_getValidTakes(app, whitePieces, blackPieces, gameBoard, king)
+    totalPosMoves = kingMoves.union(kingTakes)
+    if numPieces == 1 and len(totalPosMoves) == 0:
+        return True
+    return False
+
 # returns True if proposed move is a valid move for piece
 def aiMode_isValidMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc):
     moveRow, moveCol = moveLoc[0], moveLoc[1]
@@ -404,7 +420,6 @@ def aiMode_isValidMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc)
     if ((dRow, dCol) not in piece.posMoves
         or rowColInBounds(app, moveRow, moveCol) == False):
         return False
-
     kingChecked = aiMode_isChecked(app, whitePieces, blackPieces, gameBoard, piece.color == "white")
     if type(piece) == King and kingChecked and (dRow, dCol) in King.castleMoves:
         return False
@@ -646,7 +661,6 @@ def aiMode_attemptUndoCheck(app, whitePieces, blackPieces, gameBoard, piece, mov
     oppColor = getOpposingColor(app, piece)
     color = piece.color
     pieceCopy = piece.copy()
-
     whitePiecesCopy = copyPieces(app, whitePieces)
     blackPiecesCopy = copyPieces(app, blackPieces)
     gameBoardCopy = copyGameBoard(app, gameBoard)
@@ -696,7 +710,6 @@ def aiMode_attemptUndoCheck(app, whitePieces, blackPieces, gameBoard, piece, mov
             pieceCopy.row, pieceCopy.col = tempRow, tempCol
             eval(f"{color}PiecesCopy[str(pieceCopy)].add(pieceCopy)")
             result = None
-
             if aiMode_isChecked(app, whitePiecesCopy, blackPiecesCopy, 
                                 gameBoardCopy, pieceCopy.color == "white"):
                 result = False
@@ -787,24 +800,25 @@ def aiMode_getMinimaxBestMove(app, whitePieces, blackPieces, gameBoard, isMaxPla
     bestMove = None
     minVal = None
     posMoves = aiMode_getMovesFromState(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
+    print("\n\n")
     for (piece, moveLoc) in posMoves:
         moveRow, moveCol = moveLoc[0], moveLoc[1]
         depth = 1
         pieceCopy = None
         whiteCopy = dict()
         for key in whitePieces:
+            whiteCopy[key] = whiteCopy.get(key, set())
             for item in whitePieces[key]:
                 itemCopy = item.copy()
-                whiteCopy[key] = whiteCopy.get(key, set())
                 whiteCopy[key].add(itemCopy)
                 if (item.color, item.row, item.col, item.moved) == (piece.color, piece.row, piece.col, piece.moved):
                     pieceCopy = itemCopy
 
         blackCopy = dict()
         for key in blackPieces:
+            blackCopy[key] = blackCopy.get(key, set())
             for item in blackPieces[key]:
                 itemCopy = item.copy()
-                blackCopy[key] = blackCopy.get(key, set())
                 blackCopy[key].add(itemCopy)
                 if (item.color, item.row, item.col, item.moved) == (piece.color, piece.row, piece.col, item.moved):
                     pieceCopy = itemCopy
@@ -823,6 +837,7 @@ def aiMode_getMinimaxBestMove(app, whitePieces, blackPieces, gameBoard, isMaxPla
             minVal = moveVal
             bestPiece = piece
             bestMove = (moveRow, moveCol)
+            print(bestPiece, bestMove, minVal)
     return bestPiece, bestMove
 
 # general pseudocode structure: https://www.javatpoint.com/mini-max-algorithm-in-ai
@@ -838,15 +853,15 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
         posVal = 0
         playerColor = aiMode_getPlayerColor(isMaxPlayerTurn)
 
-        # add "value bonuses" if the move results in a check/mate
+        # add "value bonuses" if the move results in a check or mate
         if isMated and playerColor == 'black':
-            posVal -= 50
-        elif isChecked and playerColor == 'black':
-            posVal -= 5
-        elif isMated and playerColor == "white":
             posVal += 50
+        elif isChecked and playerColor == 'black':
+            posVal += 15
+        elif isMated and playerColor == "white":
+            posVal -= 50
         elif isChecked and playerColor == "white":
-            posVal += 5
+            posVal -= 15
 
         for pieceType in blackPieces:
             for item in blackPieces[pieceType]:
@@ -857,7 +872,11 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
                 posVal += item.value
        
         return posVal
-
+    # elif aiMode_isStalemate(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn):
+    #     if isMaxPlayerTurn:
+    #         return 100000
+    #     else:
+    #         return -100000
     posMovesFromState = aiMode_getMovesFromState(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
     if isMaxPlayerTurn: 
         maxEval = -100000  
@@ -893,7 +912,6 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
         return maxEval
         
     else:    
-        # print('minEval!')
         minEval = 100000   
         for (piece, moveLoc) in posMovesFromState:
             whiteCopy = copyPieces(app, whitePieces)
@@ -968,6 +986,7 @@ def twoPlayer_mouseMoved(app, event):
     app.resumeButtonColor = app.normalButtonColor
     app.quitButtonColor = app.normalButtonColor
     app.pauseButtonColor = app.normalButtonColor
+    app.okButtonColor = app.normalButtonColor
     if app.paused:
         # if hovering inside resume button
         if (x > app.resumeX - app.pauseButtonsWidth
@@ -1414,7 +1433,7 @@ def twoPlayer_keyPressed(app, event):
         else:
             app.font = app.fancyFont
         app.fancyGraphics = not app.fancyGraphics
-
+    keyPressed(app, event)
 
 ########################
 # DRAW FUNCTIONS
@@ -1422,10 +1441,16 @@ def twoPlayer_keyPressed(app, event):
 
 # draws player labels
 def drawPlayerLabels(app, canvas):
-    canvas.create_text(app.width / 2, app.height - app.margin / 2,
-                        text = "Player 1", fill = "black", font = (app.font,  20))
-    canvas.create_text(app.width / 2, app.margin / 2,
-                        text = "Player 2", fill = "black", font = (app.font,  20))
+    if app.playerToMoveIdx % 2 == 0:
+        canvas.create_text(app.width / 2, app.height - app.margin / 2,
+                            text = "Player 1", fill = "gold", font = (app.font,  20))
+        canvas.create_text(app.width / 2, app.margin / 2,
+                            text = "Player 2", fill = "black", font = (app.font,  20))
+    else:
+        canvas.create_text(app.width / 2, app.height - app.margin / 2,
+                            text = "Player 1", fill = "black", font = (app.font,  20))
+        canvas.create_text(app.width / 2, app.margin / 2,
+                            text = "Player 2", fill = "gold", font = (app.font,  20))
 
 # draws taken pieces on side of the chess board                     
 def drawTakenPieces(app, canvas):
@@ -1508,7 +1533,7 @@ def drawCheck(app, canvas):
                             fill = "yellow")
     canvas.create_text(app.pauseMargin + app.buttonWidth / 2, 
                        app.pauseMargin + app.buttonHeight / 2, 
-                       text = f"{app.checked} checked!", font = (app.font,  10),
+                       text = f"{app.checked} checked", font = (app.font,  9),
                        fill = "black")
 
 # draws player's avaliable moves and takes
@@ -1614,6 +1639,74 @@ def twoPlayer_redrawAll(app, canvas):
 # GENERAL CONTROLS
 #################################################
 
+def keyPressed(app, event):
+    key = event.key
+    restartGame(app)
+    if key.isdigit() and key != "2":
+        app.whitePieces = {"P": set(), "B": set(), "N": set(), 
+                        "R": set(), "K": set(), "Q": set()}
+        app.blackPieces = {"P": set(), "B": set(), "N": set(), 
+                        "R": set(), "K": set(), "Q": set()}
+        app.gameBoard = [[0] * 8 for i in range(8)]
+    if key == "1": # knight-queen mate
+        wKnight1 = Knight(3, 3, "white")
+        wQueen = Queen(1, 2, 'white')
+        wKing = King(7, 4, 'white', True)
+        for whitePiece in {wKnight1, wQueen, wKing}:
+            app.whitePieces[str(whitePiece)].add(whitePiece)
+            app.gameBoard[whitePiece.row][whitePiece.col] = whitePiece
+
+        bKing = King(0, 4, "black", True)
+        app.blackPieces[str(bKing)].add(bKing)
+        app.gameBoard[bKing.row][bKing.col] = bKing
+
+    elif key == "2": # fool's mate (against white)
+        app.activePiece = app.gameBoard[6][5]
+        makeMove(app, 5, 5)
+        app.activePiece = app.gameBoard[1][4]
+        makeMove(app, 3, 4)
+        app.activePiece = app.gameBoard[6][6]
+        makeMove(app, 4, 6)
+
+    elif key == "3": # backrank mate (against black)
+        wQueen = Queen(7, 3, 'white')
+        wKing = King(7, 4, 'white', True)
+        for whitePiece in {wQueen, wKing}:
+            app.whitePieces[str(whitePiece)].add(whitePiece)
+            app.gameBoard[whitePiece.row][whitePiece.col] = whitePiece
+
+        bKing = King(0, 6, "black", True)
+        bPawn1 = Pawn(1, 5, "black")
+        bPawn2 = Pawn(1, 6, "black")
+        bPawn3 = Pawn(1, 7, "black")
+        for blackPiece in {bPawn1, bPawn2, bPawn3, bKing}:
+            app.blackPieces[str(blackPiece)].add(blackPiece)
+            app.gameBoard[blackPiece.row][blackPiece.col] = blackPiece
+
+    elif key == "4": # two-rook mate (against white)
+        wKing = King(6, 1, "white", True)
+        app.whitePieces['K'].add(wKing)
+        app.gameBoard[wKing.row][wKing.col] = wKing
+
+        bKing = King(0, 4, "black", True)
+        bRook1 = Rook(5, 7, "black", True)
+        bRook2 = Rook(4, 6, "black", True)
+        for blackPiece in {bKing, bRook1, bRook2}:
+            app.blackPieces[str(blackPiece)].add(blackPiece)
+            app.gameBoard[blackPiece.row][blackPiece.col] = blackPiece
+    elif key == "5":
+        pass # check situation 1
+    elif key == "6":
+        pass # check situation 2
+    elif key == "7":
+        pass # check situation 3
+    elif key == "8":
+        pass # near-side castle
+    elif key == "9":
+        pass # far-side castle
+    elif key == "0":
+        restartGame(app)
+
 # returns number of pieces in dictionary
 def getNumberOfPieces(app, d):
     numPieces = 0
@@ -1697,8 +1790,8 @@ def copyGameBoard(app, board):
 def copyPieces(app, pieceDict):
     pieceDictCopy = dict()
     for key in pieceDict:
+        pieceDictCopy[key] = pieceDictCopy.get(key, set())
         for piece in pieceDict[key]:
-            pieceDictCopy[key] = pieceDictCopy.get(key, set())
             pieceDictCopy[key].add(piece.copy())
     return pieceDictCopy
 
@@ -1826,7 +1919,6 @@ def initButtonVars(app):
 def restartGame(app):
     initGameBoardVars(app)
     initButtonVars(app)
-    app.mode = 'homeScreenMode'
 
     app.activePiece = None
     app.validTakes = set()
