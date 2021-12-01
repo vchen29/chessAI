@@ -214,7 +214,7 @@ def homeScreenMode_drawScreen(app, canvas):
                             app.gameModeButtonY + app.buttonHeight,
                             width = app.buttonOutlineWidth, fill = app.twoPlayerButtonColor)
     canvas.create_text(app.twoPlayerButtonX, app.gameModeButtonY,
-                       text = "Two Players", fill = "black",
+                       text = "Two Player", fill = "black",
                        font = (app.font,  20))
     canvas.create_rectangle(app.aiModeButtonX - app.buttonWidth, 
                             app.gameModeButtonY - app.buttonHeight,
@@ -952,12 +952,12 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
 def aiMode_drawPlayerLabels(app, canvas):
     if app.playerToMoveIdx % 2 == 0:
         canvas.create_text(app.width / 2, app.height - app.margin / 2,
-                            text = "Player 1", fill = "gold", font = (app.font,  20))
+                            text = "Player", fill = "gold", font = (app.font,  20))
         canvas.create_text(app.width / 2, app.margin / 2,
                             text = "Computer", fill = "black", font = (app.font,  20))
     else:
         canvas.create_text(app.width / 2, app.height - app.margin / 2,
-                            text = "Player 1", fill = "black", font = (app.font,  20))
+                            text = "Player", fill = "black", font = (app.font,  20))
         canvas.create_text(app.width / 2, app.margin / 2,
                             text = "Computer", fill = "gold", font = (app.font,  20))
 
@@ -990,8 +990,12 @@ def aiMode_redrawAll(app, canvas):
 
 # timer fired function for twoPlayer mode
 def twoPlayer_timerFired(app):
-    # maybe use to display "time-passed" clock for each player
-    pass
+    if app.timerCounter % 10 == 0:
+        if app.playerToMoveIdx % 2 == 0:
+            app.whiteTimer += 1 # in seconds
+        else:
+            app.blackTimer += 1 # in seconds
+    app.timerCounter += 1
 
 def twoPlayer_mouseMoved(app, event):    
     x, y = event.x, event.y
@@ -1215,6 +1219,7 @@ def makeMove(app, row, col):
         app.validMoves = set()
         app.validTakes = set()
         app.playerToMoveIdx += 1 
+        app.timerCounter = 0
 
 # if take is valid, take + remove piece from pieces and gameBoard
 def takePiece(app, row, col):
@@ -1269,6 +1274,7 @@ def takePiece(app, row, col):
         app.validMoves = set()
         app.validTakes = set()
         app.playerToMoveIdx += 1
+        app.timerCounter = 0
 
 # returns True if checked
 def isChecked(app, color):
@@ -1492,6 +1498,39 @@ def drawPlayerLabels(app, canvas):
         canvas.create_text(app.width / 2, app.margin / 2,
                             text = "Player 2", fill = "gold", font = (app.font,  20))
 
+def drawPlayerTimers(app, canvas):
+    whiteSecs = app.whiteTimer % 60
+    whiteMins = (app.whiteTimer - whiteSecs) // 60
+    blackSecs = app.blackTimer % 60
+    blackMins = (app.blackTimer - blackSecs) // 60
+
+    if whiteSecs < 10:
+        whiteSecs = "0" + str(whiteSecs)
+    if whiteMins < 10:
+        whiteMins = "0" + str(whiteMins)
+    if blackSecs < 10:
+        blackSecs = "0" + str(blackSecs)
+    if blackMins < 10:
+        blackMins = "0" + str(blackMins)
+
+    canvas.create_rectangle(app.timerX - app.timerWidth,
+                            app.whiteTimerY - app.timerHeight,
+                            app.timerX + app.timerWidth,
+                            app.whiteTimerY + app.timerHeight,
+                            fill = app.timerFillColor, width = app.timerLineWidth)
+    canvas.create_rectangle(app.timerX - app.timerWidth,
+                            app.blackTimerY - app.timerHeight,
+                            app.timerX + app.timerWidth,
+                            app.blackTimerY + app.timerHeight,
+                            fill = app.timerFillColor, width = app.timerLineWidth)
+
+    canvas.create_text(app.timerX, app.whiteTimerY,
+                        text = f"{whiteMins}:{whiteSecs}", fill = "black", 
+                        font = (app.font,  20))
+    canvas.create_text(app.timerX, app.blackTimerY,
+                        text = f"{blackMins}:{blackSecs}", fill = "black", 
+                        font = (app.font,  20))
+
 # draws taken pieces on side of the chess board                     
 def drawTakenPieces(app, canvas):
     idx = 0
@@ -1573,7 +1612,7 @@ def drawCheck(app, canvas):
                             fill = "yellow")
     canvas.create_text(app.pauseMargin + app.buttonWidth / 2, 
                        app.pauseMargin + app.buttonHeight / 2, 
-                       text = f"{app.checked} checked", font = (app.font,  9),
+                       text = f"{app.checked} check", font = (app.font,  10),
                        fill = "black")
 
 # draws player's avaliable moves and takes
@@ -1686,6 +1725,7 @@ def twoPlayer_redrawAll(app, canvas):
     drawTakenPieces(app, canvas)
     drawPause(app, canvas)
     drawPlayerLabels(app, canvas)
+    drawPlayerTimers(app, canvas)
 
     if app.activePiece != None:
         drawMoves(app, canvas)
@@ -1924,6 +1964,17 @@ def initGraphicsVars(app):
     # image from: https://i.kym-cdn.com/photos/images/newsfeed/001/018/903/29e.jpg
     app.frogImg = app.loadImage('graphicFrog.jpeg')
 
+def initTimerVars(app):
+    app.whiteTimer, app.blackTimer = 0, 0
+    app.timerCounter = 0
+    app.timerX = app.width / 2 + app.buttonWidth * (5/4)
+    app.whiteTimerY = app.height - app.margin / 2
+    app.blackTimerY = app.margin / 2
+    app.timerWidth = 45
+    app.timerHeight = app.margin * (1/3)
+    app.timerLineWidth = 3
+    app.timerFillColor = "ivory"
+
 # initializes all game board variables
 def initGameBoardVars(app):
     app.margin = 50
@@ -2018,12 +2069,12 @@ def initGameOverVars(app):
     
 # initiates home screen related variables
 def initHomeScreenVars(app):
-    app.buttonWidth, app.buttonHeight = 100, 30
+    app.buttonWidth, app.buttonHeight = 95, 30
     app.buttonOutlineWidth = 3
-    app.chessAITextY = app.height * (1/4)
-    app.gameModeButtonY = app.height * (1/2)
-    app.twoPlayerButtonX = app.width * (1/4)
-    app.aiModeButtonX = app.width * (3/4)
+    app.chessAITextY = app.height * (6/16)
+    app.gameModeButtonY = app.height * (9/16)
+    app.twoPlayerButtonX = app.width * (5/16)
+    app.aiModeButtonX = app.width * (11/16)
 
 def initButtonVars(app):
     app.isHoveringOnButton = False
@@ -2036,7 +2087,7 @@ def initButtonVars(app):
 def restartGame(app):
     initGameBoardVars(app)
     initButtonVars(app)
-
+    initTimerVars(app)
     app.activePiece = None
     app.validTakes = set()
     app.validMoves = set()
@@ -2053,6 +2104,7 @@ def appStarted(app):
     initGameBoardVars(app)    
     initGraphicsVars(app)
     initButtonVars(app)
+    initTimerVars(app)
     app.menuBackground = "tan"
 
     # game-related variables
@@ -2063,6 +2115,8 @@ def appStarted(app):
     app.validMoves = set()
     app.playerToMoveIdx = 0
     app.players = ["white", "black"]
+    app.whiteTimer, app.blackTimer = 0, 0
+    app.timerCounter = 0
 
     app.checked = None
     app.stalemate = False
