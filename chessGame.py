@@ -259,10 +259,10 @@ def aiMode_timerFired(app):
     # tests to see if it's computer's turn
     if app.playerToMoveIdx % 2 == 1:
         gameBoardCopy = copyGameBoard(app, app.gameBoard)
-        # whiteCopy = copyPieces(app, app.whitePieces)
-        # blackCopy = copyPieces(app, app.blackPieces)
-        bestPiece, bestMove = aiMode_getMinimaxBestMove(app, app.whitePieces.copy(), 
-                                                app.blackPieces.copy(),
+        whiteCopy = copyPieces(app, app.whitePieces)
+        blackCopy = copyPieces(app, app.blackPieces)
+        bestPiece, bestMove = aiMode_getMinimaxBestMove(app, whiteCopy, 
+                                                blackCopy,
                                                 gameBoardCopy)
         app.activePiece = bestPiece
         row, col = bestMove[0], bestMove[1]
@@ -519,7 +519,7 @@ def aiMode_makeMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc):
             rook.moved = True
             gameBoard[rook.row][rook.col] = rook
             eval(f"{rook.color}Pieces['R'].add(rook)")
-
+        piece = findPiece(app, piece, eval(f"{piece.color}Pieces"))
         eval(f"{piece.color}Pieces[str(piece)].remove(piece)")
 
         # removes pawn double-move/castle move if piece is a pawn/king or rook respectively
@@ -555,6 +555,7 @@ def aiMode_takePiece(app, whitePieces, blackPieces, gameBoard, piece, takeLoc):
     if aiMode_isValidTake(app, whitePieces, blackPieces, gameBoard, piece, takeLoc):
         row, col = takeLoc[0], takeLoc[1]
         gameBoard[oldRow][oldCol] = 0
+        piece = findPiece(app, piece, eval(f"{piece.color}Pieces"))
         eval(f"{piece.color}Pieces[str(piece)].remove(piece)")
 
         oldMovedState = piece.moved
@@ -580,9 +581,17 @@ def aiMode_takePiece(app, whitePieces, blackPieces, gameBoard, piece, takeLoc):
             eval(f"{color}Pieces['K'].add(king)")
             
         takenPiece = gameBoard[row][col]
+        # print(f"Taken Piece: {takenPiece} {takenPiece.row} {takenPiece.col}, {hash(takenPiece)}")
+        # print(eval(f"{takenPiece.color}Pieces[str(takenPiece)]"))
+        # print(f"{gameBoard}")
         for item in eval(f"{takenPiece.color}Pieces[str(takenPiece)]"):
+            # print(f"item: {item} {item.row} {item.col}")
+            # print(hash(item))
             if (item.row, item.col, item.moved) == (takenPiece.row, takenPiece.col, takenPiece.moved):
+                # print("changing takenPiece value!")
                 takenPiece = item
+                break
+        # print(hash(takenPiece), takenPiece in eval(f"{takenPiece.color}Pieces[str(takenPiece)]"))
         eval(f"{takenPiece.color}Pieces[str(takenPiece)].remove(takenPiece)")
 
         piece.row, piece.col = row, col
@@ -840,7 +849,8 @@ def aiMode_getMinimaxBestMove(app, whitePieces, blackPieces, gameBoard, isMaxPla
 # general pseudocode structure: https://www.javatpoint.com/mini-max-algorithm-in-ai
 # backtracking minimax AI for computer player (black)
 # assumed that maximizing player is white
-def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerTurn):
+def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerTurn, 
+                   alpha = -10000, beta = 10000):
     isChecked = aiMode_isChecked(app, whitePieces, blackPieces, gameBoard, isMaxPlayerTurn)
     isMated = False
     if isChecked:
@@ -907,8 +917,11 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
 
             newWhitePieces, newBlackPieces, newGameBoard = newState[0], newState[1], newState[2]
             eval = aiMode_minimax(app, newWhitePieces, newBlackPieces, newGameBoard, 
-                                    depth - 1, not isMaxPlayerTurn)  
+                                    depth - 1, not isMaxPlayerTurn, alpha, beta)  
             maxEval = max(maxEval, eval)
+            alpha = max(alpha, eval)
+            if beta <= alpha:
+                break
 
         return maxEval
         
@@ -939,10 +952,12 @@ def aiMode_minimax(app, whitePieces, blackPieces, gameBoard, depth, isMaxPlayerT
                                            gameBoardCopy, pieceCopy, moveLoc)
             newWhitePieces, newBlackPieces, newGameBoard = newState[0], newState[1], newState[2]
             eval = aiMode_minimax(app, newWhitePieces, newBlackPieces, newGameBoard, 
-                                      depth - 1, not isMaxPlayerTurn)  
+                                      depth - 1, not isMaxPlayerTurn, alpha, beta)  
             minEval = min(minEval, eval)    
-
-        return minEval 
+            beta = min(beta, eval)
+            if beta <= alpha:
+                break
+        return minEval
 
 ########################
 # DRAW FUNCTIONS
@@ -1175,7 +1190,7 @@ def makeMove(app, row, col):
             rook.moved = True
             app.gameBoard[rook.row][rook.col] = rook
             eval(f"app.{rook.color}Pieces['R'].add(rook)")
-
+        app.activePiece = findPiece(app, app.activePiece, eval(f"app.{app.activePiece.color}Pieces"))
         eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].remove(app.activePiece)")
 
         # removes pawn double-move/castle move if piece is a pawn/king respectively
@@ -1227,6 +1242,7 @@ def takePiece(app, row, col):
 
     if (isValidTake(app, row, col, app.activePiece)):
         app.gameBoard[oldRow][oldCol] = 0
+        app.activePiece = findPiece(app, app.activePiece, eval(f"app.{app.activePiece.color}Pieces"))
         eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].remove(app.activePiece)")
 
         oldMovedState = app.activePiece.moved
@@ -1251,6 +1267,7 @@ def takePiece(app, row, col):
             eval(f"app.{color}Pieces['K'].add(king)")
 
         takenPiece = app.gameBoard[row][col]
+        takenPiece = findPiece(app, takenPiece, eval(f"app.{takenPiece.color}Pieces"))
         eval(f"app.{takenPiece.color}Pieces[str(takenPiece)].remove(takenPiece)")
         eval(f"app.{takenPiece.color}TakenPieces[str(takenPiece)].add(takenPiece)")
 
@@ -1342,15 +1359,17 @@ def attemptUndoCheck(app, tempRow, tempCol, piece):
     color = piece.color
     pieceCopy = piece.copy()
 
-    whitePiecesCopy = app.whitePieces.copy()
-    blackPiecesCopy = app.blackPieces.copy()
+    whitePiecesCopy = copyPieces(app, app.whitePieces)
+    blackPiecesCopy = copyPieces(app, app.blackPieces)
     dRow, dCol = tempRow - piece.row, tempCol - piece.col
     if isinstance(tempBoardSq, ChessPiece) and tempBoardSq.color != piece.color:
         oppColorPiece = tempBoardSq
         if piece.hasTake(dRow, dCol):
+            oppColorPiece = findPiece(app, oppColorPiece, eval(f"app.{oppColor}Pieces"))
             eval(f"app.{oppColor}Pieces[str(oppColorPiece)].remove(oppColorPiece)")
             app.gameBoard[tempRow][tempCol] = piece
             app.gameBoard[piece.row][piece.col] = 0
+            piece = findPiece(app, piece, eval(f"app.{piece.color}Pieces"))
             eval(f"app.{color}Pieces[str(piece)].remove(piece)")
 
             pieceCopy.row, pieceCopy.col = tempRow, tempCol
@@ -1365,6 +1384,8 @@ def attemptUndoCheck(app, tempRow, tempCol, piece):
             app.gameBoard[tempRow][tempCol] = oppColorPiece
 
             app.gameBoard[piece.row][piece.col] = piece
+
+            pieceCopy = findPiece(app, pieceCopy, eval(f"app.{pieceCopy.color}Pieces"))
             eval(f"app.{color}Pieces[str(pieceCopy)].remove(pieceCopy)")
             eval(f"app.{color}Pieces[str(piece)].add(piece)")
             eval(f"app.{oppColor}Pieces[str(oppColorPiece)].add(oppColorPiece)")
@@ -1375,6 +1396,8 @@ def attemptUndoCheck(app, tempRow, tempCol, piece):
         if piece.hasMove(dRow, dCol): 
             app.gameBoard[tempRow][tempCol] = piece
             app.gameBoard[piece.row][piece.col] = 0
+            # find piece
+            piece = findPiece(app, piece, eval(f"app.{color}Pieces"))
             eval(f"app.{color}Pieces[str(piece)].remove(piece)")
 
             pieceCopy.row, pieceCopy.col = tempRow, tempCol
@@ -1387,13 +1410,18 @@ def attemptUndoCheck(app, tempRow, tempCol, piece):
 
             app.gameBoard[tempRow][tempCol] = 0
             app.gameBoard[piece.row][piece.col] = piece
-
+            pieceCopy = findPiece(app, pieceCopy, eval(f"app.{pieceCopy.color}Pieces"))
             eval(f"app.{color}Pieces[str(pieceCopy)].remove(pieceCopy)")
             eval(f"app.{color}Pieces[str(piece)].add(piece)")
             app.whitePieces = whitePiecesCopy
             app.blackPieces = blackPiecesCopy
             return result
     return False
+
+def findPiece(app, piece, pieceDict):
+    for item in pieceDict[str(piece)]:
+        if (item.row, item.col) == (piece.row, piece.col):
+            return item
 
 ########################
 # EVENT FUNCTIONS
