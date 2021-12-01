@@ -291,7 +291,7 @@ def aiMode_mouseMoved(app, event):
               and y > app.quitY - app.pauseButtonsHeight
               and y < app.quitY + app.pauseButtonsHeight):
             app.quitButtonColor = app.hoverColor
-    elif app.gameOver:
+    elif app.gameOver or app.stalemate:
         if (x > app.okButtonX - app.okButtonWidth and 
             x < app.okButtonX + app.okButtonWidth and
             y > app.okButtonY - app.okButtonHeight and 
@@ -319,7 +319,7 @@ def aiMode_mousePressed(app, event):
     x, y = event.x, event.y
 
     # only responds to game over buttons
-    if app.gameOver:
+    if app.gameOver or app.stalemate:
         if (x > app.okButtonX - app.okButtonWidth and 
             x < app.okButtonX + app.okButtonWidth and
             y > app.okButtonY - app.okButtonHeight and 
@@ -426,32 +426,29 @@ def aiMode_isValidMove(app, whitePieces, blackPieces, gameBoard, piece, moveLoc)
     kingChecked = aiMode_isChecked(app, whitePieces, blackPieces, gameBoard, piece.color == "white")
     if type(piece) == King and kingChecked and (dRow, dCol) in King.castleMoves:
         return False
-
-    castleDCol = None
-        
-    if type(piece) == King and (dRow, dCol) in King.castleMoves:
-        castleDCol = dCol
-        rookSearchDCol = abs(castleDCol) // castleDCol
-        newKingRow, newKingCol = piece.row + dRow, piece.col + dCol
-        tempRow, tempCol = newKingRow, newKingCol + rookSearchDCol
-        rook = None
-
-        # find rook
-        while rowColInBounds(app, tempRow, tempCol):
-            if type(gameBoard[tempRow][tempCol]) == Rook:
-                rook = gameBoard[tempRow][tempCol]
-                for item in eval(f"{rook.color}Pieces['R']"):
-                    if (item.row, item.col) == (rook.row, rook.col):
-                        return True
-                        
-            elif isinstance(gameBoard[tempRow][tempCol], ChessPiece):
-                return False
-    
-            tempCol += rookSearchDCol
         
     hasNoBlockingPieces = aiMode_checkBlockingPieces(app, gameBoard, piece, moveLoc)
     isStillChecked = aiMode_attemptUndoCheck(app, whitePieces, blackPieces, gameBoard, piece, moveLoc)
     if hasNoBlockingPieces and isStillChecked:
+        if type(piece) == King and (dRow, dCol) in King.castleMoves:
+            castleDCol = dCol
+            rookSearchDCol = abs(castleDCol) // castleDCol
+            newKingRow, newKingCol = piece.row + dRow, piece.col + dCol
+            tempRow, tempCol = newKingRow, newKingCol + rookSearchDCol
+            rook = None
+
+            # find rook
+            while rowColInBounds(app, tempRow, tempCol):
+                if type(gameBoard[tempRow][tempCol]) == Rook:
+                    rook = gameBoard[tempRow][tempCol]
+                    for item in eval(f"{rook.color}Pieces['R']"):
+                        if (item.row, item.col) == (rook.row, rook.col):
+                            return True
+                            
+                elif isinstance(gameBoard[tempRow][tempCol], ChessPiece):
+                    return False
+        
+                tempCol += rookSearchDCol
         return True
     else:
         return False
@@ -972,6 +969,9 @@ def aiMode_redrawAll(app, canvas):
     elif app.paused:
         drawPauseMenu(app, canvas)
         return
+    elif app.stalemate:
+        drawStalemateScreen(app, canvas)
+        return
 
     drawBoard(app, canvas)
     drawPieces(app, canvas)
@@ -1012,7 +1012,7 @@ def twoPlayer_mouseMoved(app, event):
               and y > app.quitY - app.pauseButtonsHeight
               and y < app.quitY + app.pauseButtonsHeight):
             app.quitButtonColor = app.hoverColor
-    elif app.gameOver:
+    elif app.gameOver or app.stalemate:
         if (x > app.okButtonX - app.okButtonWidth and 
             x < app.okButtonX + app.okButtonWidth and
             y > app.okButtonY - app.okButtonHeight and 
@@ -1046,33 +1046,30 @@ def isValidMove(app, moveRow, moveCol, piece):
     kingChecked = isChecked(app, piece.color)
     if type(piece) == King and kingChecked and (dRow, dCol) in King.castleMoves:
         return False
-    
-    # if king attempting castle move, check if it's valid for rook and king
-    castleDCol = None
-        
-    if type(piece) == King and (dRow, dCol) in King.castleMoves:
-        castleDCol = dCol
-        rookSearchDCol = abs(castleDCol) // castleDCol
-        newKingRow, newKingCol = piece.row + dRow, piece.col + dCol
-        tempRow, tempCol = newKingRow, newKingCol + rookSearchDCol
-        rook = None
-
-        # find rook
-        while rowColInBounds(app, tempRow, tempCol):
-            if type(app.gameBoard[tempRow][tempCol]) == Rook:
-                rook = app.gameBoard[tempRow][tempCol]
-                for item in eval(f"app.{rook.color}Pieces['R']"):
-                    if (item.row, item.col) == (rook.row, rook.col):
-                        return True
-                        
-            elif isinstance(app.gameBoard[tempRow][tempCol], ChessPiece):
-                return False
-    
-            tempCol += rookSearchDCol
+            
 
     hasNoBlockingPieces = checkBlockingPieces(app, moveRow, moveCol, piece)
     isStillChecked = attemptUndoCheck(app, moveRow, moveCol, piece)
     if hasNoBlockingPieces and isStillChecked:
+        if type(piece) == King and (dRow, dCol) in King.castleMoves:
+            castleDCol = dCol
+            rookSearchDCol = abs(castleDCol) // castleDCol
+            newKingRow, newKingCol = piece.row + dRow, piece.col + dCol
+            tempRow, tempCol = newKingRow, newKingCol + rookSearchDCol
+            rook = None
+
+            # find rook
+            while rowColInBounds(app, tempRow, tempCol):
+                if type(app.gameBoard[tempRow][tempCol]) == Rook:
+                    rook = app.gameBoard[tempRow][tempCol]
+                    for item in eval(f"app.{rook.color}Pieces['R']"):
+                        if (item.row, item.col) == (rook.row, rook.col):
+                            return True
+                            
+                elif isinstance(app.gameBoard[tempRow][tempCol], ChessPiece):
+                    return False
+        
+                tempCol += rookSearchDCol
         return True
     else:
         return False
@@ -1208,6 +1205,9 @@ def makeMove(app, row, col):
             if isMated(app, oppColor):
                 app.gameOver = True
                 return
+        elif isStalemate(app, oppColor):
+            app.stalemate = True
+            return
         else:
             app.checked = None
 
@@ -1225,8 +1225,8 @@ def takePiece(app, row, col):
         eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].remove(app.activePiece)")
 
         oldMovedState = app.activePiece.moved
-        app.activePiece.row, app.activePiece.col = row, col
         app.activePiece.moved = True
+
         if oldMovedState != True and type(app.activePiece) == Pawn:
             if app.activePiece.color == "white":
                 app.activePiece.posMoves.remove((-2, 0))
@@ -1249,6 +1249,7 @@ def takePiece(app, row, col):
         eval(f"app.{takenPiece.color}Pieces[str(takenPiece)].remove(takenPiece)")
         eval(f"app.{takenPiece.color}TakenPieces[str(takenPiece)].add(takenPiece)")
 
+        app.activePiece.row, app.activePiece.col = row, col
         app.gameBoard[row][col] = app.activePiece
         eval(f"app.{app.activePiece.color}Pieces[str(app.activePiece)].add(app.activePiece)")
 
@@ -1258,6 +1259,9 @@ def takePiece(app, row, col):
             if isMated(app, oppColor):
                 app.gameOver = True
                 return
+        elif isStalemate(app, oppColor):
+            app.stalemate = True
+            return
         else:
             app.checked = None
 
@@ -1289,6 +1293,29 @@ def isChecked(app, color):
                 return True
     return False
 
+# returns True if game is at a stalemate
+def isStalemate(app, color):
+    king = eval(f"app.{color}Pieces['K'].pop()")
+    eval(f"app.{color}Pieces['K'].add(king)")
+
+    oppColor = None
+    if color == "white":
+        oppColor = "black"
+    else:
+        oppColor = "white"
+
+    numPieces = getNumberOfPieces(app, eval(f"app.{color}Pieces"))
+    numOppColorPieces = getNumberOfPieces(app, eval(f"app.{oppColor}Pieces"))
+
+    colorKingMoves = getValidMoves(app, king)
+    colorKingTakes = getValidTakes(app, king)
+    totalPosMoves = colorKingMoves.union(colorKingTakes)
+    if numPieces == 1 and len(totalPosMoves) == 0:
+        return True
+    elif numPieces == 1 and numOppColorPieces == 1:
+        return True
+
+    return False
 
 # return True if color is mated
 def isMated(app, color):
@@ -1370,7 +1397,7 @@ def attemptUndoCheck(app, tempRow, tempCol, piece):
 def twoPlayer_mousePressed(app, event):
     x, y = event.x, event.y
     # if game is over respond only to user clicking ok button
-    if app.gameOver:
+    if app.gameOver or app.stalemate:
         if (x > app.okButtonX - app.okButtonWidth and 
             x < app.okButtonX + app.okButtonWidth and
             y > app.okButtonY - app.okButtonHeight and 
@@ -1604,6 +1631,21 @@ def drawPauseMenu(app, canvas):
                        font = (app.font,  25), fill = "black")
 
 # draws game over screen      
+def drawStalemateScreen(app, canvas):
+    canvas.create_rectangle(0, 0, app.width, app.height,
+                            fill = app.gameOverScreenColor)
+    canvas.create_text(app.width / 2, app.height * (7/16), text = "Stalemate.", 
+                            font = (app.font,  50), fill = "black")
+    
+    canvas.create_rectangle(app.okButtonX - app.okButtonWidth, 
+                            app.okButtonY - app.okButtonHeight,
+                            app.okButtonX + app.okButtonWidth, 
+                            app.okButtonY + app.okButtonHeight,
+                            width = app.okButtonLineWidth, fill = app.okButtonColor)
+    canvas.create_text(app.okButtonX, app.okButtonY, text = "OK",
+                       font = (app.font,  20))
+                    
+# draws game over screen      
 def drawGameOverScreen(app, canvas):
     canvas.create_rectangle(0, 0, app.width, app.height,
                             fill = app.gameOverScreenColor)
@@ -1634,6 +1676,9 @@ def twoPlayer_redrawAll(app, canvas):
         return
     elif app.paused:
         drawPauseMenu(app, canvas)
+        return
+    elif app.stalemate:
+        drawStalemateScreen(app, canvas)
         return
         
     drawBoard(app, canvas)
@@ -1997,6 +2042,7 @@ def restartGame(app):
     app.validMoves = set()
     app.playerToMoveIdx = 0
     app.checked = None
+    app.stalemate = False
     app.gameOver = False
     app.gameBoard = [[0] * 8 for i in range(8)]
     initBoardVars(app)
@@ -2019,6 +2065,7 @@ def appStarted(app):
     app.players = ["white", "black"]
 
     app.checked = None
+    app.stalemate = False
     app.gameOver = False
 
     app.gameBoard = [[0] * 8 for i in range(8)]
